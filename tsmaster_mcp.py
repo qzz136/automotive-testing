@@ -63,7 +63,9 @@ class ConnectInput(BaseModel):
         default=2000, description="CAN FD data baudrate in kbps"
     )
     device_type: int = Field(default=3, description="Hardware device type (3=TOSUN)")
-    device_subtype: int = Field(default=8, description="Device subtype (8=TC1014)")
+    device_subtype: int = Field(
+        default=12, description="Device subtype (8=TC1014, 10=TC1026, 12=TC1012)"
+    )
     device_name: str = Field(default="TC1014", description="Device name")
 
 
@@ -132,6 +134,27 @@ def _create_variant_array(data: List[int]) -> Any:
     return VARIANT(pythoncom.VT_ARRAY | pythoncom.VT_I1, tuple(data))
 
 
+def _data_length_to_dlc(length: int) -> int:
+    if length <= 8:
+        return length
+    elif length == 12:
+        return 9
+    elif length == 16:
+        return 10
+    elif length == 20:
+        return 11
+    elif length == 24:
+        return 12
+    elif length == 32:
+        return 13
+    elif length == 48:
+        return 14
+    elif length == 64:
+        return 15
+    else:
+        return min(length, 64)
+
+
 @mcp.tool(
     name="tsmaster_connect",
     annotations={
@@ -174,7 +197,7 @@ async def tsmaster_connect(params: ConnectInput) -> str:
 
         for ch in range(params.can_channel_count):
             _app.configure_baudrate_canfd(
-                ch, params.can_baudrate, params.can_fd_baudrate, 0, 0, True
+                ch, params.can_baudrate, params.can_fd_baudrate, 1, 0, True
             )
 
         for ch in range(params.lin_channel_count):
@@ -247,7 +270,7 @@ async def tsmaster_transmit_can(params: CANMessageInput) -> str:
         c.FIsExtendedId = 1 if params.is_extended_id else 0
         c.FDLC = params.dlc
         c.FIdentifier = params.identifier
-        c.FTimeUs = params.timestamp_us
+        c.FTimeUS = params.timestamp_us
         c.FDatas = _create_variant_array(
             params.data[:8]
             if len(params.data) >= 8
@@ -288,15 +311,15 @@ async def tsmaster_transmit_canfd(params: CANFDMessageInput) -> str:
 
         cfd = win32com.client.Record("TCANFD", _app)
         cfd.FIdxChn = params.channel
-        cfd.FIsTx = 1 if params.is_tx else 0
-        cfd.FIsRemote = 0
+        cfd.FIsTX = 1 if params.is_tx else 0
         cfd.FIsExtendedId = 1 if params.is_extended_id else 0
         cfd.FIsEDL = 1 if params.is_edl else 0
         cfd.FIsBRS = 1 if params.is_brs else 0
         cfd.FIsESI = 1 if params.is_esi else 0
         cfd.FIdentifier = params.identifier
-        cfd.FDLC = params.dlc
-        cfd.FTimeUs = params.timestamp_us
+        data_len = len(params.data)
+        cfd.FDLC = _data_length_to_dlc(data_len)
+        cfd.FTimeUS = params.timestamp_us
 
         data_arr = (
             params.data[:64]
@@ -307,7 +330,7 @@ async def tsmaster_transmit_canfd(params: CANFDMessageInput) -> str:
 
         _com.transmit_canfd_async(cfd)
 
-        return f'{{"status": "transmitted", "id": "0x{params.identifier:X}", "channel": {params.channel}, "dlc": {params.dlc}, "is_fd": true, "is_brs": {params.is_brs}}}'
+        return f'{{"status": "transmitted", "id": "0x{params.identifier:X}", "channel": {params.channel}, "data_len": {data_len}, "dlc_encoded": {_data_length_to_dlc(data_len)}, "is_fd": true, "is_brs": {params.is_brs}}}'
     except Exception as e:
         return f'{{"status": "error", "message": "{str(e)}"}}'
 

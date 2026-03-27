@@ -1,0 +1,5 @@
+#介绍
+这是一个TSMaster软件的MCP服务器，期望实现CAN报文收发相关的功能
+#注意
+请先使用MCPbuilder skills学习怎么编写MCP
+用户要求实现的功能，请先使用PDF技能查看@TSMaster_COM API_Python编程指导.pdf里面相关的内容，然后再编写
