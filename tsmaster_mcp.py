@@ -11,8 +11,8 @@ import time
 import pythoncom
 import win32com.client
 from win32com.client import VARIANT
-from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, ConfigDict
+from typing import Optional, List, Dict, Any, Union
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("tsmaster_mcp")
@@ -105,6 +105,29 @@ class MonitorCANInput(BaseModel):
     )
 
 
+class TransmitReceiveInput(BaseModel):
+    channel: int = Field(
+        default=0, description="CAN FD channel index (0-based)", ge=0, le=7
+    )
+    is_extended_id: bool = Field(
+        default=False, description="True for extended ID (29-bit)"
+    )
+    is_edl: bool = Field(default=True, description="Extended data length (FD frame)")
+    is_brs: bool = Field(default=False, description="Bit rate switch")
+    is_esi: bool = Field(default=False, description="Error state indicator")
+    identifier: Union[int, str] = Field(
+        ..., description="CAN FD message ID (int or hex string like '0x3040101')"
+    )
+    data: List[int] = Field(default_factory=list, description="Message data bytes")
+    timeout_ms: int = Field(
+        default=1000, description="Receive timeout in milliseconds", ge=100, le=60000
+    )
+    filter_ids: List[Union[int, str]] = Field(
+        default_factory=list,
+        description="Filter IDs to receive (empty = receive all), e.g. ['0x3040101']",
+    )
+
+
 class GetChannelCountInput(BaseModel):
     protocol: str = Field(default="CAN", description="Protocol: CAN or LIN")
 
@@ -132,6 +155,15 @@ def _create_variant_array(data: List[int]) -> Any:
     if not data:
         return VARIANT(pythoncom.VT_ARRAY | pythoncom.VT_I1, tuple([0] * 8))
     return VARIANT(pythoncom.VT_ARRAY | pythoncom.VT_I1, tuple(data))
+
+
+def _parse_id(value: Union[int, str]) -> int:
+    if isinstance(value, str):
+        value = value.strip()
+        if value.startswith("0x") or value.startswith("0X"):
+            return int(value, 16)
+        return int(value, 10)
+    return value
 
 
 def _data_length_to_dlc(length: int) -> int:
@@ -239,87 +271,46 @@ async def tsmaster_disconnect() -> str:
 
 
 @mcp.tool(
-    name="tsmaster_transmit_can",
+    name="tsmaster_transmit_and_receive",
     annotations={
-        "title": "Transmit CAN Message",
+        "title": "Transmit CAN FD and Receive Response",
         "readOnlyHint": False,
         "destructiveHint": False,
         "idempotentHint": False,
         "openWorldHint": False,
     },
 )
-async def tsmaster_transmit_can(params: CANMessageInput) -> str:
-    """Transmit a Classic CAN message asynchronously.
+async def tsmaster_transmit_and_receive(params: TransmitReceiveInput) -> str:
+    """Transmit a CAN FD message and wait for responses.
 
-    This sends a CAN message on the specified channel. The message is transmitted
-    once without waiting for acknowledgment.
+    This tool clears the receive buffer, enables FIFO, sends the specified message,
+    then waits for and returns all received messages within the timeout period.
 
     Args:
-        params (CANMessageInput): Message parameters including channel, ID, data, etc.
+        params (TransmitReceiveInput): Message parameters including channel, ID, data, and timeout.
 
     Returns:
-        JSON string with transmission status
+        JSON string with transmission status and all received messages
     """
     try:
         _ensure_connected()
 
-        c = win32com.client.Record("TCAN", _app)
-        c.FIdxChn = params.channel
-        c.FIsTX = 1 if params.is_tx else 0
-        c.FIsRemote = 1 if params.is_remote else 0
-        c.FIsExtendedId = 1 if params.is_extended_id else 0
-        c.FDLC = params.dlc
-        c.FIdentifier = params.identifier
-        c.FTimeUS = params.timestamp_us
-        c.FDatas = _create_variant_array(
-            params.data[:8]
-            if len(params.data) >= 8
-            else params.data + [0] * (8 - len(params.data))
-        )
-
-        _com.transmit_can_async(c)
-
-        return f'{{"status": "transmitted", "id": "0x{params.identifier:X}", "channel": {params.channel}, "dlc": {params.dlc}, "data": {params.data[:8]}}}'
-    except Exception as e:
-        return f'{{"status": "error", "message": "{str(e)}"}}'
-
-
-@mcp.tool(
-    name="tsmaster_transmit_canfd",
-    annotations={
-        "title": "Transmit CAN FD Message",
-        "readOnlyHint": False,
-        "destructiveHint": False,
-        "idempotentHint": False,
-        "openWorldHint": False,
-    },
-)
-async def tsmaster_transmit_canfd(params: CANFDMessageInput) -> str:
-    """Transmit a CAN FD message asynchronously.
-
-    This sends a CAN FD message which supports longer data lengths (up to 64 bytes)
-    and higher baudrates.
-
-    Args:
-        params (CANFDMessageInput): Message parameters including channel, ID, data, etc.
-
-    Returns:
-        JSON string with transmission status
-    """
-    try:
-        _ensure_connected()
+        _com.fifo_enable_receive_fifo()
+        _com.fifo_clear_can_receive_buffers(params.channel)
+        _com.fifo_clear_canfd_receive_buffers(params.channel)
+        time.sleep(0.1)
 
         cfd = win32com.client.Record("TCANFD", _app)
         cfd.FIdxChn = params.channel
-        cfd.FIsTX = 1 if params.is_tx else 0
+        cfd.FIsTX = 1
         cfd.FIsExtendedId = 1 if params.is_extended_id else 0
         cfd.FIsEDL = 1 if params.is_edl else 0
         cfd.FIsBRS = 1 if params.is_brs else 0
         cfd.FIsESI = 1 if params.is_esi else 0
-        cfd.FIdentifier = params.identifier
+        cfd.FIdentifier = _parse_id(params.identifier)
         data_len = len(params.data)
         cfd.FDLC = _data_length_to_dlc(data_len)
-        cfd.FTimeUS = params.timestamp_us
+        cfd.FTimeUS = 0
 
         data_arr = (
             params.data[:64]
@@ -330,44 +321,11 @@ async def tsmaster_transmit_canfd(params: CANFDMessageInput) -> str:
 
         _com.transmit_canfd_async(cfd)
 
-        return f'{{"status": "transmitted", "id": "0x{params.identifier:X}", "channel": {params.channel}, "data_len": {data_len}, "dlc_encoded": {_data_length_to_dlc(data_len)}, "is_fd": true, "is_brs": {params.is_brs}}}'
-    except Exception as e:
-        return f'{{"status": "error", "message": "{str(e)}"}}'
-
-
-@mcp.tool(
-    name="tsmaster_monitor_can",
-    annotations={
-        "title": "Monitor CAN Bus",
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": False,
-    },
-)
-async def tsmaster_monitor_can(params: MonitorCANInput) -> str:
-    """Monitor CAN FD bus for a specified duration and return all received messages.
-
-    Args:
-        params (MonitorCANInput): Channel and monitoring duration parameters.
-
-    Returns:
-        JSON string with all received messages during the monitoring period
-    """
-    try:
-        _ensure_connected()
-
-        _com.fifo_enable_receive_fifo()
-        _com.fifo_clear_canfd_receive_buffers(params.channel)
-
         messages = []
-        end_time = time.time() * 1000 + params.duration_ms
+        end_time = time.time() * 1000 + params.timeout_ms
 
         while time.time() * 1000 < end_time:
-            a_idx_chn_req = params.channel
-            a_include_tx = True
-
-            result = _com.fifo_receive_canfd_msg(a_idx_chn_req, False)
+            result = _com.fifo_receive_canfd_msg(params.channel, False)
 
             if result:
                 (
@@ -384,6 +342,13 @@ async def tsmaster_monitor_can(params: MonitorCANInput) -> str:
                 ) = result
 
                 if success and identifier > 0:
+                    parsed_filter_ids = (
+                        [_parse_id(fid) for fid in params.filter_ids]
+                        if params.filter_ids
+                        else []
+                    )
+                    if parsed_filter_ids and identifier not in parsed_filter_ids:
+                        continue
                     data_list = [int(x) for x in datas.split(",")] if datas else []
 
                     messages.append(
@@ -398,42 +363,9 @@ async def tsmaster_monitor_can(params: MonitorCANInput) -> str:
                         }
                     )
 
-        if messages:
-            return f'{{"status": "monitored", "channel": {params.channel}, "duration_ms": {params.duration_ms}, "count": {len(messages)}, "messages": {messages}}}'
-        else:
-            return f'{{"status": "no_message", "channel": {params.channel}, "duration_ms": {params.duration_ms}}}'
-    except Exception as e:
-        return f'{{"status": "error", "message": "{str(e)}"}}'
+            time.sleep(0.01)
 
-
-@mcp.tool(
-    name="tsmaster_get_channel_count",
-    annotations={
-        "title": "Get Channel Count",
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": False,
-    },
-)
-async def tsmaster_get_channel_count(params: GetChannelCountInput) -> str:
-    """Get the number of configured channels.
-
-    Args:
-        params (GetChannelCountInput): Protocol parameter.
-
-    Returns:
-        JSON string with channel count
-    """
-    try:
-        _ensure_com_initialized()
-
-        if params.protocol.upper() == "CAN":
-            count = _app.get_can_channel_count()
-        else:
-            count = _app.get_lin_channel_count()
-
-        return f'{{"protocol": "{params.protocol}", "count": {count}}}'
+        return f'{{"status": "completed", "tx_id": "0x{_parse_id(params.identifier):X}", "tx_data_len": {data_len}, "received_count": {len(messages)}, "messages": {messages}}}'
     except Exception as e:
         return f'{{"status": "error", "message": "{str(e)}"}}'
 
