@@ -13,6 +13,7 @@ from tsmaster.api import (
     _parse_id,
 )
 from tsmaster.smart_car import send_switch_value, send_switch_value_alltime, send_zone_value
+from tsmaster.machine_arm import nfc_start, machine_arm_rotation
 
 
 def _execute_step(step: TestStep, channel: int) -> StepResult:
@@ -211,6 +212,37 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
             success, message = send_zone_value(
                 zone_value=step.zone_value,
             )
+            return StepResult(
+                step_id=step.step_id,
+                step_type=step_type_str,
+                status="passed" if success else "failed",
+                error_message=None if success else message,
+                timestamp=timestamp,
+            )
+
+        elif step.step_type == StepType.MACHINE_ARM_ROTATION:
+            if step.angle is None:
+                return StepResult(
+                    step_id=step.step_id,
+                    step_type=step_type_str,
+                    status="failed",
+                    error_message="No angle configured",
+                    timestamp=timestamp,
+                )
+            success, message = machine_arm_rotation(
+                angle=step.angle,
+            )
+            return StepResult(
+                step_id=step.step_id,
+                step_type=step_type_str,
+                status="passed" if success else "failed",
+                error_message=None if success else message,
+                timestamp=timestamp,
+            )
+
+        elif step.step_type == StepType.NFC_START:
+            name = step.name if step.name is not None else "nfc_test"
+            success, message = nfc_start(name=name)
             return StepResult(
                 step_id=step.step_id,
                 step_type=step_type_str,

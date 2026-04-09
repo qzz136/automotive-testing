@@ -1,0 +1,10 @@
+# Automotive Testing MCP Server Dependencies
+
+# MCP Server framework
+mcp>=1.27.0
+
+# Data validation
+pydantic>=2.12.0
+
+# Computer vision (for NFC video recording)
+opencv-python>=4.13.0

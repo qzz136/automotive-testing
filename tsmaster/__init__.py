@@ -38,6 +38,11 @@ from tsmaster.smart_car import (
     send_zone_value,
 )
 
+from tsmaster.machine_arm import (
+    nfc_start,
+    machine_arm_rotation,
+)
+
 __all__ = [
     "StepType",
     "MessageFrame",
@@ -61,4 +66,6 @@ __all__ = [
     "send_switch_value",
     "send_switch_value_alltime",
     "send_zone_value",
+    "nfc_start",
+    "machine_arm_rotation",
 ]

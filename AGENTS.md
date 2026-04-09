@@ -19,11 +19,6 @@ automotive-testing/
 
 ## 运行与测试
 
-### 启动MCP服务器
-```bash
-python automotive-testing.py
-```
-
 ### 运行测试（Python方式）
 ```bash
 # 完整测试

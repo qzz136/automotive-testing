@@ -19,6 +19,8 @@ class StepType(str, Enum):
     SMART_CAR_SWITCH = "smart_car_switch"
     SMART_CAR_SWITCH_ALLTIME = "smart_car_switch_alltime"
     SMART_CAR_ZONE = "smart_car_zone"
+    MACHINE_ARM_ROTATION = "machine_arm_rotation"
+    NFC_START = "nfc_start"
 
 
 class MessageFrame(BaseModel):
@@ -67,6 +69,13 @@ class TestStep(BaseModel):
     )
     zone_value: Optional[int] = Field(
         None, ge=0, le=255, description="智能小车区域控制值"
+    )
+    # 机械臂控制参数
+    angle: Optional[int] = Field(
+        None, ge=0, le=180, description="机械臂旋转角度 (0-180度)"
+    )
+    name: Optional[str] = Field(
+        None, description="NFC测试名称标识"
     )
 
 

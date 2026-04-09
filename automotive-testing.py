@@ -49,6 +49,8 @@ async def tsmaster_run_simulation(scenario: ECUSimulationScenario) -> str:
     - smart_car_switch: 智能小车单次按键控制 (switch_value + keytime_ms)
     - smart_car_switch_alltime: 智能小车持续开关控制 (switch_value + enable_disable)
     - smart_car_zone: 智能小车区域移动控制 (zone_value)
+    - machine_arm_rotation: 机械臂旋转控制 (angle: 0-180度)
+    - nfc_start: 机械臂NFC刷卡触发 (name: 测试名称标识)
 
     注意：周期发送会在测试流程结束时自动停止，如需提前停止可使用 stop_cyclic 步骤。
 
