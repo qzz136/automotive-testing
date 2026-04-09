@@ -1,18 +1,19 @@
-# TSMaster MCP Server
+# Automotive Testing MCP Server
 
 ## 项目介绍
-这是一个TSMaster软件的MCP服务器，提供ECU仿真测试功能，通过COM API执行CAN/CANFD报文收发测试。
+这是一个汽车测试相关的MCP服务器，提供ECU仿真测试功能，通过COM API执行CAN/CANFD报文收发测试。
 
 ## 项目结构
 ```
-tsmaster-mcp/
-├── tsmaster_mcp.py          # MCP服务器主入口
+automotive-testing/
+├── automotive-testing.py      # MCP服务器主入口
 ├── tsmaster/                 # TSMaster功能模块
 │   ├── __init__.py          # 包导出
 │   ├── models.py            # 数据模型 (Pydantic)
 │   ├── connection.py        # COM连接管理
 │   ├── api.py               # CANFD API函数
-│   └── executor.py          # 测试步骤执行器
+│   ├── executor.py          # 测试步骤执行器
+│   └── smart_car.py         # 智能小车TCP控制
 └── TSMaster_COM API_Python编程指导.pdf  # TSMaster API文档
 ```
 
@@ -20,7 +21,7 @@ tsmaster-mcp/
 
 ### 启动MCP服务器
 ```bash
-python tsmaster_mcp.py
+python automotive-testing.py
 ```
 
 ### 运行测试（Python方式）
@@ -31,7 +32,7 @@ import sys
 sys.path.insert(0, '.')
 import asyncio
 import json
-import tsmaster_mcp as tsm
+import automotive_testing as tsm
 from tsmaster import ECUSimulationScenario, TestStep, MessageFrame, StepType
 
 async def test():
@@ -87,7 +88,13 @@ ruff check .
 
 #### tsmaster/executor.py - 步骤执行
 - `_execute_step()`: 执行单个测试步骤
-- 支持: init_fifo, send_single, start_cyclic, stop_cyclic, wait, receive
+- 支持: init_fifo, send_single, start_cyclic, stop_cyclic, wait, receive,
+  smart_car_switch, smart_car_switch_alltime, smart_car_zone
+
+#### tsmaster/smart_car.py - 智能小车控制
+- `send_switch_value()`: 发送开关控制指令 (单次)
+- `send_switch_value_alltime()`: 发送持续开关控制指令
+- `send_zone_value()`: 发送区域控制指令
 
 #### tsmaster/models.py - 数据模型
 - `StepType`: 步骤类型枚举

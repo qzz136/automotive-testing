@@ -12,6 +12,7 @@ from tsmaster.api import (
     _get_canfd_messages,
     _parse_id,
 )
+from tsmaster.smart_car import send_switch_value, send_switch_value_alltime, send_zone_value
 
 
 def _execute_step(step: TestStep, channel: int) -> StepResult:
@@ -155,17 +156,66 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
                 timestamp=timestamp,
             )
 
-        elif step.step_type in (
-            StepType.POWER_ON,
-            StepType.POWER_OFF,
-            StepType.RELAY_ON,
-            StepType.RELAY_OFF,
-        ):
+        elif step.step_type == StepType.SMART_CAR_SWITCH:
+            if step.switch_value is None:
+                return StepResult(
+                    step_id=step.step_id,
+                    step_type=step_type_str,
+                    status="failed",
+                    error_message="No switch_value configured",
+                    timestamp=timestamp,
+                )
+            keytime = step.keytime_ms if step.keytime_ms is not None else 100
+            success, message = send_switch_value(
+                switch_value=step.switch_value,
+                keytime_ms=keytime,
+            )
             return StepResult(
                 step_id=step.step_id,
                 step_type=step_type_str,
-                status="skipped",
-                error_message="Not implemented",
+                status="passed" if success else "failed",
+                error_message=None if success else message,
+                timestamp=timestamp,
+            )
+
+        elif step.step_type == StepType.SMART_CAR_SWITCH_ALLTIME:
+            if step.switch_value is None or step.enable_disable is None:
+                return StepResult(
+                    step_id=step.step_id,
+                    step_type=step_type_str,
+                    status="failed",
+                    error_message="No switch_value or enable_disable configured",
+                    timestamp=timestamp,
+                )
+            success, message = send_switch_value_alltime(
+                switch_value=step.switch_value,
+                enable_disable=step.enable_disable,
+            )
+            return StepResult(
+                step_id=step.step_id,
+                step_type=step_type_str,
+                status="passed" if success else "failed",
+                error_message=None if success else message,
+                timestamp=timestamp,
+            )
+
+        elif step.step_type == StepType.SMART_CAR_ZONE:
+            if step.zone_value is None:
+                return StepResult(
+                    step_id=step.step_id,
+                    step_type=step_type_str,
+                    status="failed",
+                    error_message="No zone_value configured",
+                    timestamp=timestamp,
+                )
+            success, message = send_zone_value(
+                zone_value=step.zone_value,
+            )
+            return StepResult(
+                step_id=step.step_id,
+                step_type=step_type_str,
+                status="passed" if success else "failed",
+                error_message=None if success else message,
                 timestamp=timestamp,
             )
 

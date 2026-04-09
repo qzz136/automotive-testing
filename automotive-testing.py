@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MCP Server for TSMaster ECU Simulation.
+MCP Server for Automotive Testing.
 
 本服务器提供ECU仿真测试功能，通过COM API执行CAN/CANFD报文收发测试。
 """
@@ -18,7 +18,7 @@ from tsmaster import (
     _stop_all_cyclic_messages,
 )
 
-mcp = FastMCP("tsmaster_mcp")
+mcp = FastMCP("automotive-testing")
 
 
 @mcp.tool(
@@ -42,11 +42,13 @@ async def tsmaster_run_simulation(scenario: ECUSimulationScenario) -> str:
     - init_fifo: 初始化FIFO（使能接收并清空buffer）
     - send_single: 发送单帧CAN/CANFD报文
     - start_cyclic: 启动周期报文发送
+    - stop_cyclic: 停止周期报文发送
     - wait: 等待指定时长
     - receive: 接收并验证总线报文（从FIFO获取消息，不清空buffer）
-             可通过 include_tx 参数选择是否包含发送的报文 (默认True=包含自己发送的)
-    - power_on/power_off: 电源控制（预留）
-    - relay_on/relay_off: 继电器控制（预留）
+              可通过 include_tx 参数选择是否包含发送的报文 (默认True=包含自己发送的)
+    - smart_car_switch: 智能小车单次按键控制 (switch_value + keytime_ms)
+    - smart_car_switch_alltime: 智能小车持续开关控制 (switch_value + enable_disable)
+    - smart_car_zone: 智能小车区域移动控制 (zone_value)
 
     注意：周期发送会在测试流程结束时自动停止，如需提前停止可使用 stop_cyclic 步骤。
 

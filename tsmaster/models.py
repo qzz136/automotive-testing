@@ -16,10 +16,9 @@ class StepType(str, Enum):
     STOP_CYCLIC = "stop_cyclic"
     WAIT = "wait"
     RECEIVE = "receive"
-    POWER_ON = "power_on"
-    POWER_OFF = "power_off"
-    RELAY_ON = "relay_on"
-    RELAY_OFF = "relay_off"
+    SMART_CAR_SWITCH = "smart_car_switch"
+    SMART_CAR_SWITCH_ALLTIME = "smart_car_switch_alltime"
+    SMART_CAR_ZONE = "smart_car_zone"
 
 
 class MessageFrame(BaseModel):
@@ -56,6 +55,19 @@ class TestStep(BaseModel):
         default=1000, ge=100, le=60000, description="接收超时(毫秒)"
     )
     include_tx: bool = Field(default=True, description="是否包含发送报文")
+    # 智能小车控制参数
+    switch_value: Optional[int] = Field(
+        None, ge=0, le=255, description="智能小车开关值"
+    )
+    keytime_ms: Optional[int] = Field(
+        None, ge=0, le=5000, description="智能小车按键持续时间(毫秒)"
+    )
+    enable_disable: Optional[int] = Field(
+        None, ge=0, le=255, description="智能小车持续开关启用/禁用标志"
+    )
+    zone_value: Optional[int] = Field(
+        None, ge=0, le=255, description="智能小车区域控制值"
+    )
 
 
 class ECUSimulationScenario(BaseModel):

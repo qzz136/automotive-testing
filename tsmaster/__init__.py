@@ -32,6 +32,12 @@ from tsmaster.api import (
 
 from tsmaster.executor import _execute_step
 
+from tsmaster.smart_car import (
+    send_switch_value,
+    send_switch_value_alltime,
+    send_zone_value,
+)
+
 __all__ = [
     "StepType",
     "MessageFrame",
@@ -52,4 +58,7 @@ __all__ = [
     "_parse_id",
     "_data_length_to_dlc",
     "_execute_step",
+    "send_switch_value",
+    "send_switch_value_alltime",
+    "send_zone_value",
 ]
