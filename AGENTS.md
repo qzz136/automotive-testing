@@ -13,7 +13,10 @@ automotive-testing/
 │   ├── connection.py        # COM连接管理
 │   ├── api.py               # CANFD API函数
 │   ├── executor.py          # 测试步骤执行器
-│   └── smart_car.py         # 智能小车TCP控制
+│   ├── smart_car.py         # 智能小车TCP控制
+│   └── machine_arm.py       # 机械臂控制(NFC刷卡、视频录制)
+├── MPLibCode.cpp            # TSMaster Mini Program C++源码
+├── requirements.txt         # Python依赖
 └── TSMaster_COM API_Python编程指导.pdf  # TSMaster API文档
 ```
 
