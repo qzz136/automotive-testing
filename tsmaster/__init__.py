@@ -43,6 +43,8 @@ from tsmaster.machine_arm import (
     machine_arm_rotation,
 )
 
+from tsmaster.encoder import encode_can_signal
+
 __all__ = [
     "StepType",
     "MessageFrame",
@@ -62,6 +64,7 @@ __all__ = [
     "_get_canfd_messages",
     "_parse_id",
     "_data_length_to_dlc",
+    "encode_can_signal",
     "_execute_step",
     "send_switch_value",
     "send_switch_value_alltime",

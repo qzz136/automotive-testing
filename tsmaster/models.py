@@ -4,7 +4,7 @@ TSMaster数据模型
 
 from enum import Enum
 from typing import List, Dict, Any, Optional, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class StepType(str, Enum):
@@ -34,7 +34,27 @@ class MessageFrame(BaseModel):
     identifier: Union[int, str] = Field(
         ..., description="报文ID (如'0x3040201'或整型50598529)"
     )
-    data: List[int] = Field(default_factory=list, description="报文数据字节列表")
+    data: List[Union[int, str]] = Field(default_factory=list, description="报文数据字节列表")
+
+    @field_validator('data', mode='before')
+    @classmethod
+    def parse_hex_data(cls, v):
+        if not isinstance(v, list):
+            raise ValueError("data must be a list")
+        result = []
+        for item in v:
+            if isinstance(item, str):
+                item = item.strip()
+                if item.startswith(('0x', '0X')):
+                    item = int(item, 16)
+                else:
+                    item = int(item, 10)
+            elif isinstance(item, int):
+                pass  # keep as is
+            else:
+                raise ValueError(f"data items must be int or str, got {type(item)}")
+            result.append(item)
+        return result
 
 
 class TestStep(BaseModel):
@@ -109,3 +129,18 @@ class SimulationReport(BaseModel):
     failed_steps: int
     step_results: List[StepResult]
     total_duration_ms: int
+
+
+class SignalInput(BaseModel):
+    """CAN信号输入"""
+
+    signal: str = Field(..., description="信号名称")
+    value: float = Field(..., description="信号值")
+
+
+class EncodeResult(BaseModel):
+    """CAN信号编码结果"""
+
+    frame_id: int = Field(..., description="报文帧ID")
+    message_name: str = Field(..., description="报文名称")
+    data: List[int] = Field(..., description="编码后的报文数据字节列表")

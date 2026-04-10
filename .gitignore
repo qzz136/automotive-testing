@@ -1,4 +1,3 @@
-nul
 __pycache__/
 
 # DBC files (auto-generated, confidential)
@@ -6,3 +5,6 @@ __pycache__/
 
 # MPLibCode (auto-generated)
 MPLibCode.cpp
+
+# encode_signal CLI (standalone, use MCP tool instead)
+encode_signal.py

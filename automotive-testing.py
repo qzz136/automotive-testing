@@ -8,6 +8,7 @@ MCP Server for Automotive Testing.
 import asyncio
 import time
 import json
+from typing import List
 from mcp.server.fastmcp import FastMCP
 
 from tsmaster import (
@@ -17,6 +18,8 @@ from tsmaster import (
     _execute_step,
     _stop_all_cyclic_messages,
 )
+from tsmaster import encode_can_signal as _encode_can_signal
+from tsmaster.models import SignalInput
 
 mcp = FastMCP("automotive-testing")
 
@@ -115,6 +118,51 @@ async def tsmaster_run_simulation(scenario: ECUSimulationScenario) -> str:
         _stop_all_cyclic_messages()
 
     return result_json
+
+
+@mcp.tool(
+    name="encode_can_signal",
+    annotations={
+        "title": "CAN信号编码",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    },
+)
+async def encode_can_signal(dbc_path: str, signals: List[SignalInput]) -> str:
+    """
+    Encode CAN signals to CAN message bytes using DBC file.
+
+    Takes a list of signal name-value pairs and encodes them into a CAN message
+    based on the signal definitions in the specified DBC file.
+
+    Args:
+        dbc_path: Path to the DBC file containing signal definitions
+        signals: List of signal name-value pairs to encode
+
+    Returns:
+        JSON string containing the encoding result:
+        - status: "success" or "error"
+        - frame_id: CAN message frame ID
+        - message_name: Name of the CAN message
+        - data: Encoded message data as byte list
+        On error returns: {"status": "error", "message": "..."}
+    """
+    try:
+        signal_values = {s.signal: s.value for s in signals}
+        result = _encode_can_signal(dbc_path, signal_values)
+        return json.dumps(
+            {
+                "status": "success",
+                "frame_id": f"0x{result['frame_id']:X}",
+                "message_name": result["message_name"],
+                "data": result["data"],
+            },
+            ensure_ascii=False,
+        )
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
 
 
 if __name__ == "__main__":
