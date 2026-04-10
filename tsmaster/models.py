@@ -134,6 +134,9 @@ class TestStep(BaseModel):
     tolerance_value: Optional[float] = Field(
         None, ge=0, description="比较值的容差范围（用于浮点比较）"
     )
+    clear_fifo_before: Optional[bool] = Field(
+        default=False, description="CHECK_SIGNALS执行前是否清空FIFO缓冲区"
+    )
 
 
 class ECUSimulationScenario(BaseModel):

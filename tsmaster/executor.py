@@ -369,6 +369,11 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
 
                 # 从FIFO获取报文
                 timeout = step.check_timeout_ms or 1000
+
+                # 如果设置了 clear_fifo_before，清空FIFO缓冲区
+                if step.clear_fifo_before:
+                    _start_canfd_reception(channel)
+
                 messages = _get_canfd_messages(
                     channel=channel,
                     timeout_ms=timeout,
@@ -489,6 +494,11 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
                 # ========== 立即模式 (原有逻辑) ==========
                 # 从FIFO获取报文
                 timeout = step.check_timeout_ms or 1000
+
+                # 如果设置了 clear_fifo_before，清空FIFO缓冲区
+                if step.clear_fifo_before:
+                    _start_canfd_reception(channel)
+
                 messages = _get_canfd_messages(
                     channel=channel,
                     timeout_ms=timeout,
