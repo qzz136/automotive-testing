@@ -5,7 +5,6 @@ MCP Server for Automotive Testing.
 本服务器提供ECU仿真测试功能，通过COM API执行CAN/CANFD报文收发测试。
 """
 
-import asyncio
 import time
 import json
 from typing import List
@@ -13,7 +12,6 @@ from mcp.server.fastmcp import FastMCP
 
 from tsmaster import (
     ECUSimulationScenario,
-    StepResult,
     _ensure_connected,
     _execute_step,
     _stop_all_cyclic_messages,
@@ -54,6 +52,11 @@ async def tsmaster_run_simulation(scenario: ECUSimulationScenario) -> str:
     - smart_car_zone: 智能小车区域移动控制 (zone_value)
     - machine_arm_rotation: 机械臂旋转控制 (angle: 0-180度)
     - nfc_start: 机械臂NFC刷卡触发 (name: 测试名称标识)
+    - decode_signals: 从CAN/CANFD报文解码信号
+      参数: dbc_path, decode_message_ids, decode_timeout_ms, decode_max_frames
+    - check_signals: 检查信号条件是否满足
+      参数: check_dbc_path, check_message_ids, check_timeout_ms, check_max_frames, conditions
+      conditions格式: [{"signal": "信号名", "operator": "==", "value": 值}]
 
     注意：周期发送会在测试流程结束时自动停止，如需提前停止可使用 stop_cyclic 步骤。
 

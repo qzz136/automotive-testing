@@ -14,6 +14,24 @@ from tsmaster.api import (
 )
 from tsmaster.smart_car import send_switch_value, send_switch_value_alltime, send_zone_value
 from tsmaster.machine_arm import nfc_start, machine_arm_rotation
+from tsmaster.encoder import decode_can_signal
+
+
+def _evaluate_condition(actual: float, operator: str, expected: float) -> bool:
+    """Evaluate a single condition"""
+    if operator == "==":
+        return actual == expected
+    elif operator == "!=":
+        return actual != expected
+    elif operator == ">":
+        return actual > expected
+    elif operator == "<":
+        return actual < expected
+    elif operator == ">=":
+        return actual >= expected
+    elif operator == "<=":
+        return actual <= expected
+    return False
 
 
 def _execute_step(step: TestStep, channel: int) -> StepResult:
@@ -248,6 +266,150 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
                 step_type=step_type_str,
                 status="passed" if success else "failed",
                 error_message=None if success else message,
+                timestamp=timestamp,
+            )
+
+        elif step.step_type == StepType.DECODE_SIGNALS:
+            # 验证参数
+            if not step.dbc_path:
+                return StepResult(
+                    step_id=step.step_id,
+                    step_type=step_type_str,
+                    status="failed",
+                    error_message="No dbc_path configured",
+                    timestamp=timestamp,
+                )
+
+            # 从FIFO获取报文
+            timeout = step.decode_timeout_ms or 1000
+            messages = _get_canfd_messages(
+                channel=channel,
+                timeout_ms=timeout,
+                expected_ids=step.decode_message_ids or [],
+                include_tx=True,
+            )
+
+            # 如果没有收到报文
+            if not messages:
+                return StepResult(
+                    step_id=step.step_id,
+                    step_type=step_type_str,
+                    status="failed",
+                    error_message="No messages received",
+                    timestamp=timestamp,
+                )
+
+            # 解码每条报文
+            decoded_results = []
+            for msg in messages[: (step.decode_max_frames or 10)]:
+                try:
+                    decoded = decode_can_signal(step.dbc_path, msg['id'], msg['data'])
+                    decoded_results.append(decoded)
+                except Exception as e:
+                    # 单条解码失败不影响其他报文
+                    decoded_results.append({'error': str(e), 'frame_id': msg['id']})
+
+            return StepResult(
+                step_id=step.step_id,
+                step_type=step_type_str,
+                status="passed",
+                received_messages=decoded_results,
+                timestamp=timestamp,
+            )
+
+        elif step.step_type == StepType.CHECK_SIGNALS:
+            # 验证参数
+            if not step.check_dbc_path:
+                return StepResult(
+                    step_id=step.step_id,
+                    step_type=step_type_str,
+                    status="failed",
+                    error_message="No check_dbc_path configured",
+                    timestamp=timestamp,
+                )
+            if not step.conditions:
+                return StepResult(
+                    step_id=step.step_id,
+                    step_type=step_type_str,
+                    status="failed",
+                    error_message="No conditions configured",
+                    timestamp=timestamp,
+                )
+
+            # 从FIFO获取报文
+            timeout = step.check_timeout_ms or 1000
+            messages = _get_canfd_messages(
+                channel=channel,
+                timeout_ms=timeout,
+                expected_ids=step.check_message_ids or [],
+                include_tx=True,
+            )
+
+            if not messages:
+                return StepResult(
+                    step_id=step.step_id,
+                    step_type=step_type_str,
+                    status="failed",
+                    error_message="No messages received",
+                    timestamp=timestamp,
+                )
+
+            # 解析条件 (conditions是List[Dict])
+            # 格式: [{"signal": "PwrSta", "operator": "==", "value": 3}]
+            failed_conditions = []
+
+            # 对每条报文尝试解码并检查条件
+            for msg in messages[: (step.check_max_frames or 10)]:
+                try:
+                    decoded = decode_can_signal(step.check_dbc_path, msg['id'], msg['data'])
+                    signals = decoded.get('signals', {})
+
+                    # 检查所有条件 (match_all=True)
+                    all_passed = True
+                    for cond in step.conditions:
+                        signal_name = cond.get('signal')
+                        operator = cond.get('operator')
+                        expected_value = cond.get('value')
+
+                        if operator in ('exists', 'not_exists'):
+                            signal_found = signal_name in signals
+                            if operator == 'exists' and not signal_found:
+                                failed_conditions.append(f"Signal '{signal_name}' not found")
+                                all_passed = False
+                            elif operator == 'not_exists' and signal_found:
+                                failed_conditions.append(f"Signal '{signal_name}' should not exist")
+                                all_passed = False
+                        else:
+                            if signal_name not in signals:
+                                failed_conditions.append(f"Signal '{signal_name}' not found")
+                                all_passed = False
+                                continue
+                            actual = signals[signal_name]
+                            if not _evaluate_condition(actual, operator, expected_value):
+                                failed_conditions.append(
+                                    f"Signal '{signal_name}': actual={actual}, expected {operator} {expected_value}"
+                                )
+                                all_passed = False
+
+                    if all_passed:
+                        # 找到一个匹配就返回成功
+                        return StepResult(
+                            step_id=step.step_id,
+                            step_type=step_type_str,
+                            status="passed",
+                            received_messages=[decoded],
+                            timestamp=timestamp,
+                        )
+                except Exception:
+                    # 解码失败，跳到下一条报文
+                    continue
+
+            # 所有报文都不满足条件
+            return StepResult(
+                step_id=step.step_id,
+                step_type=step_type_str,
+                status="failed",
+                error_message="; ".join(failed_conditions) if failed_conditions else "No matching message found",
                 timestamp=timestamp,
             )
 

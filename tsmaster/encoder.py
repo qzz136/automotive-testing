@@ -2,7 +2,7 @@
 CAN signal encoding from DBC file.
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 import cantools
 
@@ -24,6 +24,11 @@ class AmbiguousSignalError(Exception):
 
 class SignalsNotInSameMessageError(Exception):
     """Raised when signals belong to different messages"""
+    pass
+
+
+class DecodeError(Exception):
+    """Raised when message decoding fails"""
     pass
 
 
@@ -74,7 +79,7 @@ def encode_can_signal(
             sigs_in_msg = [s.name for s in msg.signals if s.name in target_signal_names]
             msg_info.append(f"{msg.name} (ID: 0x{msg.frame_id:X}) contains: {sigs_in_msg}")
         raise SignalsNotInSameMessageError(
-            f"Signals belong to different messages:\n" + "\n".join(msg_info)
+            "Signals belong to different messages:\n" + "\n".join(msg_info)
         )
 
     # Get the single message containing all signals
@@ -117,4 +122,49 @@ def encode_can_signal(
         'frame_id': message.frame_id,
         'message_name': message.name,
         'data': list(data)
+    }
+
+
+def decode_can_signal(
+    dbc_path: str,
+    frame_id: Union[int, str],
+    data: List[int]
+) -> Dict[str, Any]:
+    """Decode CAN message bytes to signal values using DBC file.
+
+    Args:
+        dbc_path: Path to the DBC file
+        frame_id: Message frame ID (int or hex string like '0x100')
+        data: Message data bytes (list of integers)
+
+    Returns:
+        Dictionary with frame_id, message_name, and signals (dict of signal->value)
+
+    Raises:
+        DecodeError: Message ID not found in DBC or decoding failed
+    """
+    import cantools
+
+    # Import _parse_id from api module
+    from tsmaster.api import _parse_id
+
+    db = cantools.database.load_file(dbc_path)
+
+    # Convert frame_id to int if string
+    fid = _parse_id(frame_id) if isinstance(frame_id, str) else frame_id
+
+    try:
+        message = db.get_message_by_frame_id(fid)
+    except KeyError:
+        raise DecodeError(f"Message ID 0x{fid:X} not found in DBC file")
+
+    try:
+        decoded = message.decode(bytes(data))
+    except Exception as e:
+        raise DecodeError(f"Failed to decode message 0x{fid:X}: {e}")
+
+    return {
+        'frame_id': message.frame_id,
+        'message_name': message.name,
+        'signals': dict(decoded)
     }

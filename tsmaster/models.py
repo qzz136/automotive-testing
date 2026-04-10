@@ -21,6 +21,8 @@ class StepType(str, Enum):
     SMART_CAR_ZONE = "smart_car_zone"
     MACHINE_ARM_ROTATION = "machine_arm_rotation"
     NFC_START = "nfc_start"
+    DECODE_SIGNALS = "decode_signals"
+    CHECK_SIGNALS = "check_signals"
 
 
 class MessageFrame(BaseModel):
@@ -96,6 +98,31 @@ class TestStep(BaseModel):
     )
     name: Optional[str] = Field(
         None, description="NFC测试名称标识"
+    )
+    # DECODE_SIGNALS 参数
+    dbc_path: Optional[str] = Field(None, description="DBC文件路径")
+    decode_message_ids: Optional[List[Union[int, str]]] = Field(
+        default_factory=list, description="要解码的报文ID列表"
+    )
+    decode_timeout_ms: Optional[int] = Field(
+        default=1000, ge=100, le=60000, description="解码超时(ms)"
+    )
+    decode_max_frames: Optional[int] = Field(
+        default=10, ge=1, le=1000, description="最大解码帧数"
+    )
+    # CHECK_SIGNALS 参数
+    check_dbc_path: Optional[str] = Field(None, description="CHECK_SIGNALS的DBC文件路径")
+    check_message_ids: Optional[List[Union[int, str]]] = Field(
+        default_factory=list, description="CHECK_SIGNALS的报文ID列表"
+    )
+    check_timeout_ms: Optional[int] = Field(
+        default=1000, ge=100, le=60000, description="CHECK_SIGNALS超时(ms)"
+    )
+    check_max_frames: Optional[int] = Field(
+        default=10, ge=1, le=1000, description="CHECK_SIGNALS最大帧数"
+    )
+    conditions: Optional[List[Dict[str, Any]]] = Field(
+        default_factory=list, description="信号条件列表，格式: [{'signal': 'xxx', 'operator': '==', 'value': 3}]"
     )
 
 
