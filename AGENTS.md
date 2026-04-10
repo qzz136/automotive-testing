@@ -10,11 +10,13 @@ automotive-testing/
 ├── tsmaster/                 # TSMaster功能模块
 │   ├── __init__.py          # 包导出
 │   ├── models.py            # 数据模型 (Pydantic)
+│   ├── encoder.py           # CAN信号编码 (DBC文件)
 │   ├── connection.py        # COM连接管理
 │   ├── api.py               # CANFD API函数
 │   ├── executor.py          # 测试步骤执行器
 │   ├── smart_car.py         # 智能小车TCP控制
 │   └── machine_arm.py       # 机械臂控制(NFC刷卡、视频录制)
+├── encode_signal.py          # CAN信号编码CLI工具 (独立使用)
 ├── MPLibCode.cpp            # TSMaster Mini Program C++源码
 ├── requirements.txt         # Python依赖
 └── TSMaster_COM API_Python编程指导.pdf  # TSMaster API文档
@@ -71,6 +73,11 @@ ruff check .
 
 ### 模块说明
 
+#### tsmaster/encoder.py - CAN信号编码
+- `encode_can_signal()`: 使用DBC文件编码CAN信号
+- 支持单信号或多信号编码
+- 异常: `SignalNotFoundError`, `ValueOutOfRangeError`, `AmbiguousSignalError`, `SignalsNotInSameMessageError`
+
 #### tsmaster/connection.py - 连接管理
 - `_ensure_com_initialized()`: 初始化COM组件
 - `_ensure_connected()`: 连接TSMaster硬件
@@ -97,9 +104,12 @@ ruff check .
 #### tsmaster/models.py - 数据模型
 - `StepType`: 步骤类型枚举
 - `MessageFrame`: CAN/CANFD报文结构
+  - `data` 字段支持十进制整数和十六进制字符串 (如 `"0x12"`)
 - `TestStep`: 测试步骤定义
 - `ECUSimulationScenario`: 测试场景定义
 - `StepResult`: 步骤执行结果
+- `SignalInput`: CAN信号输入 (signal: str, value: float)
+- `EncodeResult`: 编码结果 (frame_id, message_name, data)
 
 ## 代码风格规范
 
@@ -205,6 +215,40 @@ cfd.FDatas = VARIANT(pythoncom.VT_ARRAY | pythoncom.VT_I1, tuple(data_arr))
 async def tool_name(param: ParamModel) -> str:
     """文档字符串"""
     ...
+```
+
+### MCP工具 - encode_can_signal
+```python
+@mcp.tool(
+    name="encode_can_signal",
+    annotations={
+        "title": "CAN信号编码",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    },
+)
+async def encode_can_signal(dbc_path: str, signals: List[SignalInput]) -> str:
+    """
+    使用DBC文件编码CAN信号为报文字节
+
+    Args:
+        dbc_path: DBC文件路径
+        signals: 信号列表，每项包含 signal(信号名) 和 value(物理值)
+
+    Returns:
+        JSON字符串，包含:
+        - status: "success" 或 "error"
+        - frame_id: 报文ID (十六进制格式，如 "0x116")
+        - message_name: 报文名称
+        - data: 编码后的报文数据 (十进制整数列表)
+
+    示例:
+        dbc_path = "C:/path/to/test.dbc"
+        signals = [SignalInput(signal="PwrSta", value=3)]
+        # 返回: {"status": "success", "frame_id": "0x116", "message_name": "FD_VCU1", "data": [0, 0, 0, 18, ...]}
+    """
 ```
 
 ## 注意事项
