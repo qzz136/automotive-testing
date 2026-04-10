@@ -124,6 +124,16 @@ class TestStep(BaseModel):
     conditions: Optional[List[Dict[str, Any]]] = Field(
         default_factory=list, description="信号条件列表，格式: [{'signal': 'xxx', 'operator': '==', 'value': 3}]"
     )
+    # 时序信号检查参数
+    hold_duration_ms: Optional[int] = Field(
+        None, ge=0, le=60000, description="信号必须保持的毫秒数"
+    )
+    hold_max_frames: Optional[int] = Field(
+        None, ge=1, le=1000, description="信号必须保持的连续帧数"
+    )
+    tolerance_value: Optional[float] = Field(
+        None, ge=0, description="比较值的容差范围（用于浮点比较）"
+    )
 
 
 class ECUSimulationScenario(BaseModel):
