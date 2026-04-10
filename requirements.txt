@@ -8,3 +8,6 @@ pydantic>=2.12.0
 
 # Computer vision (for NFC video recording)
 opencv-python>=4.13.0
+
+# DBC file parsing for CAN signal encoding
+cantools>=39.0.0

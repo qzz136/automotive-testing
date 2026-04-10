@@ -1,2 +1,8 @@
 nul
 __pycache__/
+
+# DBC files (auto-generated, confidential)
+*.dbc
+
+# MPLibCode (auto-generated)
+MPLibCode.cpp
