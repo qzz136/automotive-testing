@@ -54,9 +54,10 @@ async def tsmaster_run_simulation(scenario: ECUSimulationScenario) -> str:
     - nfc_start: 机械臂NFC刷卡触发 (name: 测试名称标识)
     - decode_signals: 从CAN/CANFD报文解码信号
       参数: dbc_path, decode_message_ids, decode_timeout_ms, decode_max_frames
-    - check_signals: 检查信号条件是否满足
-      参数: check_dbc_path, check_message_ids, check_timeout_ms, check_max_frames, conditions
-      conditions格式: [{"signal": "信号名", "operator": "==", "value": 值}]
+    - check_signals: 检查信号条件是否满足（支持多信号、时序检查、FIFO清空）
+      参数: check_dbc_path, check_message_ids, check_timeout_ms, check_max_frames,
+           conditions, hold_max_frames, hold_duration_ms, tolerance_value, clear_fifo_before
+      conditions格式: [{"signal": "信号名", "operator": "==", "value": 值}]，操作符: == != > < >= <= exists not_exists
 
     注意：周期发送会在测试流程结束时自动停止，如需提前停止可使用 stop_cyclic 步骤。
 
