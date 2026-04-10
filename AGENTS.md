@@ -73,10 +73,11 @@ ruff check .
 
 ### 模块说明
 
-#### tsmaster/encoder.py - CAN信号编码
+#### tsmaster/encoder.py - CAN信号编码/解码
 - `encode_can_signal()`: 使用DBC文件编码CAN信号
-- 支持单信号或多信号编码
-- 异常: `SignalNotFoundError`, `ValueOutOfRangeError`, `AmbiguousSignalError`, `SignalsNotInSameMessageError`
+- `decode_can_signal()`: 使用DBC文件解码CAN报文为信号值
+- 编码异常: `SignalNotFoundError`, `ValueOutOfRangeError`, `AmbiguousSignalError`, `SignalsNotInSameMessageError`
+- 解码异常: `DecodeError`
 
 #### tsmaster/connection.py - 连接管理
 - `_ensure_com_initialized()`: 初始化COM组件
@@ -94,7 +95,8 @@ ruff check .
 #### tsmaster/executor.py - 步骤执行
 - `_execute_step()`: 执行单个测试步骤
 - 支持: init_fifo, send_single, start_cyclic, stop_cyclic, wait, receive,
-  smart_car_switch, smart_car_switch_alltime, smart_car_zone
+  smart_car_switch, smart_car_switch_alltime, smart_car_zone,
+  machine_arm_rotation, nfc_start, decode_signals, check_signals
 
 #### tsmaster/smart_car.py - 智能小车控制
 - `send_switch_value()`: 发送开关控制指令 (单次)
@@ -110,6 +112,66 @@ ruff check .
 - `StepResult`: 步骤执行结果
 - `SignalInput`: CAN信号输入 (signal: str, value: float)
 - `EncodeResult`: 编码结果 (frame_id, message_name, data)
+
+#### CHECK_SIGNALS 步骤 - 信号条件检查
+支持时序信号检查，可检测信号在一段时间或多帧内保持指定值。
+
+**参数**:
+- `check_dbc_path`: DBC文件路径
+- `check_message_ids`: 要检查的报文ID列表
+- `check_timeout_ms`: 超时时间（默认1000ms）
+- `check_max_frames`: 最大检查帧数（默认10）
+- `conditions`: 信号条件列表，格式: `[{"signal": "信号名", "operator": "==", "value": 值}]`
+- `hold_duration_ms`: 信号必须保持的毫秒数（可选，用于时序检查）
+- `hold_max_frames`: 信号必须保持的连续帧数（可选，用于时序检查）
+- `tolerance_value`: 比较值的容差范围（可选，用于浮点比较）
+
+**操作符**: `==`, `!=`, `>`, `<`, `>=`, `<=`, `exists`, `not_exists`
+
+**示例**:
+```python
+# 检查信号在连续3帧内保持值
+TestStep(
+    step_id='check_hold',
+    step_type=StepType.CHECK_SIGNALS,
+    check_dbc_path='test.dbc',
+    check_message_ids=['0x100'],
+    hold_max_frames=3,
+    conditions=[{'signal': 'PwrSta', 'operator': '==', 'value': 3}]
+)
+
+# 检查信号在2000ms内保持值
+TestStep(
+    step_id='check_duration',
+    step_type=StepType.CHECK_SIGNALS,
+    check_dbc_path='test.dbc',
+    check_message_ids=['0x100'],
+    hold_duration_ms=2000,
+    conditions=[{'signal': 'Voltage', 'operator': '==', 'value': 5}]
+)
+```
+
+#### decode_can_signal 函数
+```python
+def decode_can_signal(
+    dbc_path: str,
+    frame_id: Union[int, str],
+    data: List[int]
+) -> Dict[str, Any]:
+    """Decode CAN message bytes to signal values using DBC file.
+
+    Args:
+        dbc_path: Path to the DBC file
+        frame_id: Message frame ID (int or hex string like '0x100')
+        data: Message data bytes (list of integers)
+
+    Returns:
+        Dictionary with frame_id, message_name, and signals (dict of signal->value)
+
+    Raises:
+        DecodeError: Message ID not found in DBC or decoding failed
+    """
+```
 
 ## 代码风格规范
 
