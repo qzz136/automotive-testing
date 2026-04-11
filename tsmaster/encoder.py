@@ -163,8 +163,16 @@ def decode_can_signal(
     except Exception as e:
         raise DecodeError(f"Failed to decode message 0x{fid:X}: {e}")
 
+    # Convert NamedSignalValue to plain values for proper comparison
+    signals = {}
+    for name, value in decoded.items():
+        if hasattr(value, 'value'):
+            signals[name] = value.value
+        else:
+            signals[name] = value
+
     return {
         'frame_id': message.frame_id,
         'message_name': message.name,
-        'signals': dict(decoded)
+        'signals': signals
     }
