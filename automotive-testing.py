@@ -15,6 +15,7 @@ from tsmaster import (
     _ensure_connected,
     _execute_step,
     _stop_all_cyclic_messages,
+    _stop_logging,
 )
 from tsmaster import encode_can_signal as _encode_can_signal
 from tsmaster.models import SignalInput
@@ -40,7 +41,7 @@ async def tsmaster_run_simulation(scenario: ECUSimulationScenario) -> str:
     测试结束后自动停止所有周期报文发送。
 
     支持的步骤类型：
-    - init_fifo: 初始化FIFO（使能接收并清空buffer）
+    - init: 初始化测试环境，启动TSMaster报文记录（BLF格式）
     - send_single: 发送单帧CAN/CANFD报文
     - start_cyclic: 启动周期报文发送
     - stop_cyclic: 停止周期报文发送
@@ -54,10 +55,12 @@ async def tsmaster_run_simulation(scenario: ECUSimulationScenario) -> str:
     - nfc_start: 机械臂NFC刷卡触发 (name: 测试名称标识)
     - decode_signals: 从CAN/CANFD报文解码信号
       参数: dbc_path, decode_message_ids, decode_timeout_ms, decode_max_frames
-    - check_signals: 检查信号条件是否满足（支持多信号、时序检查、FIFO清空）
-      参数: check_dbc_path, check_message_ids, check_timeout_ms, check_max_frames,
-           conditions, hold_max_frames, hold_duration_ms, tolerance_value, clear_fifo_before
-      conditions格式: [{"signal": "信号名", "operator": "==", "value": 值}]，操作符: == != > < >= <= exists not_exists
+    - check_signals: 检查信号条件是否满足（支持多信号、时序检查）
+      参数: check_dbc_path, check_message_ids, check_lookback_ms, wait_before_check_ms,
+           conditions, hold_max_frames, hold_duration_ms, tolerance_value
+      check_lookback_ms: 检查回溯时间窗口(ms)，默认15000，只检查该时间窗口内的报文
+      wait_before_check_ms: 执行前等待时间(ms)，默认5000，让信号稳定后再检查
+      conditions格式: [{"signal": "信号名", "operator": "==", "value": 值, "hold_max_frames": 20, "hold_duration_ms": 2000}]，操作符: == != > < >= <= exists not_exists
 
     注意：周期发送会在测试流程结束时自动停止，如需提前停止可使用 stop_cyclic 步骤。
 
@@ -120,6 +123,8 @@ async def tsmaster_run_simulation(scenario: ECUSimulationScenario) -> str:
         result_json = json.dumps({"status": "error", "message": str(e)})
     finally:
         _stop_all_cyclic_messages()
+        # 停止BLF报文记录
+        _stop_logging()
 
     return result_json
 

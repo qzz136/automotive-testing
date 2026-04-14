@@ -74,7 +74,7 @@ ruff check .
 ### 模块说明
 
 #### tsmaster/encoder.py - CAN信号编码/解码
-- `encode_can_signal()`: 使用DBC文件编码CAN信号
+- `encode_can_signal()`: 使用DBC文件编码CAN信号并组成报文
 - `decode_can_signal()`: 使用DBC文件解码CAN报文为信号值
 - 编码异常: `SignalNotFoundError`, `ValueOutOfRangeError`, `AmbiguousSignalError`, `SignalsNotInSameMessageError`
 - 解码异常: `DecodeError`

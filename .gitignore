@@ -1,5 +1,11 @@
 __pycache__/
 
+# Logs
+logs/
+
+# Sisyphus
+.sisyphus/
+
 # DBC files (auto-generated, confidential)
 *.dbc
 

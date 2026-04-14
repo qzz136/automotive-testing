@@ -28,6 +28,7 @@ from tsmaster.api import (
     _get_canfd_messages,
     _parse_id,
     _data_length_to_dlc,
+    _stop_logging,
 )
 
 from tsmaster.executor import _execute_step
@@ -65,6 +66,7 @@ __all__ = [
     "_get_canfd_messages",
     "_parse_id",
     "_data_length_to_dlc",
+    "_stop_logging",
     "encode_can_signal",
     "decode_can_signal",
     "_execute_step",

@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 class StepType(str, Enum):
     """测试步骤类型枚举"""
 
-    INIT_FIFO = "init_fifo"
+    INIT = "init"
     SEND_SINGLE = "send_single"
     START_CYCLIC = "start_cyclic"
     STOP_CYCLIC = "stop_cyclic"
@@ -115,14 +115,15 @@ class TestStep(BaseModel):
     check_message_ids: Optional[List[Union[int, str]]] = Field(
         default_factory=list, description="CHECK_SIGNALS的报文ID列表"
     )
-    check_timeout_ms: Optional[int] = Field(
-        default=1000, ge=100, le=60000, description="CHECK_SIGNALS超时(ms)"
+    wait_before_check_ms: Optional[int] = Field(
+        default=5000, ge=0, le=60000, description="CHECK_SIGNALS执行前等待时间(ms)"
     )
-    check_max_frames: Optional[int] = Field(
-        default=10, ge=1, le=1000, description="CHECK_SIGNALS最大帧数"
+    check_lookback_ms: Optional[int] = Field(
+        default=15000, ge=1000, le=300000, description="CHECK_SIGNALS检查回溯时间窗口(ms)，只检查这个时间窗口内的报文"
     )
     conditions: Optional[List[Dict[str, Any]]] = Field(
-        default_factory=list, description="信号条件列表，格式: [{'signal': 'xxx', 'operator': '==', 'value': 3}]"
+        default_factory=list,
+        description="信号条件列表，格式: [{'signal': 'xxx', 'operator': '==', 'value': 3, 'hold_max_frames': 20, 'hold_duration_ms': 2000}]"
     )
     # 时序信号检查参数
     hold_duration_ms: Optional[int] = Field(
@@ -133,9 +134,6 @@ class TestStep(BaseModel):
     )
     tolerance_value: Optional[float] = Field(
         None, ge=0, description="比较值的容差范围（用于浮点比较）"
-    )
-    clear_fifo_before: Optional[bool] = Field(
-        default=False, description="CHECK_SIGNALS执行前是否清空FIFO缓冲区"
     )
 
 

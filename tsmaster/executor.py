@@ -2,15 +2,22 @@
 TSMaster测试步骤执行器
 """
 
+import os
 import time
+from datetime import datetime
 from tsmaster.models import StepType, TestStep, StepResult
 from tsmaster.api import (
     _transmit_single_canfd,
     _start_cyclic_canfd,
     _stop_cyclic_canfd,
-    _start_canfd_reception,
     _get_canfd_messages,
     _parse_id,
+    _start_logging,
+    _stop_logging,
+    _set_blf_log_file,
+    _get_blf_log_file,
+    _read_messages_from_blf,
+    _read_messages_from_asc,
 )
 from tsmaster.smart_car import send_switch_value, send_switch_value_alltime, send_zone_value
 from tsmaster.machine_arm import nfc_start, machine_arm_rotation
@@ -57,8 +64,17 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
     )
 
     try:
-        if step.step_type == StepType.INIT_FIFO:
-            success = _start_canfd_reception(channel)
+        if step.step_type == StepType.INIT:
+            # 设置BLF日志文件路径
+            log_dir = os.path.join(os.getcwd(), "logs", "can_messages")
+            os.makedirs(log_dir, exist_ok=True)
+            blf_file = os.path.join(log_dir, f"can_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{step.step_id}.blf")
+            _set_blf_log_file(blf_file)
+            print(f"[INIT] BLF log file: {blf_file}")
+            
+            # 启动TSMaster报文记录（BLF格式）
+            success = _start_logging(blf_file)
+            
             return StepResult(
                 step_id=step.step_id,
                 step_type=step_type_str,
@@ -351,118 +367,176 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
                     timestamp=timestamp,
                 )
 
-            # 检查是否为时序模式
-            is_temporal_mode = (step.hold_max_frames is not None and step.hold_max_frames > 0) or \
-                               (step.hold_duration_ms is not None and step.hold_duration_ms > 0)
+            # 检查是否为时序模式（任意条件有hold参数即启用）
+            is_temporal_mode = any(
+                (cond.get('hold_max_frames') is not None and cond.get('hold_max_frames') > 0) or
+                (cond.get('hold_duration_ms') is not None and cond.get('hold_duration_ms') > 0)
+                for cond in step.conditions
+            )
 
-            if is_temporal_mode:
-                # ========== 时序模式 ==========
-                # 初始化时序跟踪: {signal_name: {"first_frame_timestamp": None, "consecutive_count": 0}}
-                signal_trackers = {}
-                for cond in step.conditions:
-                    signal_name = cond.get('signal')
-                    if signal_name:
-                        signal_trackers[signal_name] = {
-                            "first_frame_timestamp": None,
-                            "consecutive_count": 0
-                        }
+            # 步骤1: 等待指定时间（让信号稳定）
+            wait_ms = step.wait_before_check_ms or 5000
+            if wait_ms > 0:
+                time.sleep(wait_ms / 1000.0)
 
-                # 从FIFO获取报文
-                timeout = step.check_timeout_ms or 1000
+            # 步骤2: 停止录制，让TSMaster写入文件
+            _stop_logging()
+            time.sleep(0.5)  # 等待文件写入完成
 
-                # 如果设置了 clear_fifo_before，清空FIFO缓冲区
-                if step.clear_fifo_before:
-                    _start_canfd_reception(channel)
-
-                messages = _get_canfd_messages(
-                    channel=channel,
-                    timeout_ms=timeout,
-                    expected_ids=step.check_message_ids or [],
-                    include_tx=True,
-                )
-
-                if not messages:
+            # 步骤3: 查找最新的ASC文件
+            import time as time_module
+            
+            log_dir = os.path.join(os.getcwd(), "logs", "can_messages")
+            asc_files = []
+            if os.path.exists(log_dir):
+                for f in os.listdir(log_dir):
+                    if f.endswith('.asc'):
+                        full_path = os.path.join(log_dir, f)
+                        asc_files.append((full_path, os.path.getmtime(full_path)))
+            
+            if not asc_files:
+                # 没有找到ASC文件，尝试使用BLF
+                blf_file = _get_blf_log_file()
+                if blf_file and os.path.exists(blf_file):
+                    asc_files = [(blf_file, os.path.getmtime(blf_file))]
+                else:
+                    # 重新开始录制
+                    new_blf = os.path.join(log_dir, f"can_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}_resume.blf")
+                    _set_blf_log_file(new_blf)
+                    _start_logging(new_blf)
                     return StepResult(
                         step_id=step.step_id,
                         step_type=step_type_str,
                         status="failed",
-                        error_message="No messages received",
+                        error_message="No ASC or BLF log file found",
                         timestamp=timestamp,
                     )
+            
+            # 按修改时间排序，取最新的
+            asc_files.sort(key=lambda x: x[1], reverse=True)
+            latest_asc_file = asc_files[0][0]
+            print(f"[CHECK_SIGNALS] Reading from: {latest_asc_file}")
+            
+            # 步骤4: 计算回溯时间
+            lookback_ms = step.check_lookback_ms or 15000
+            lookback_seconds = lookback_ms / 1000.0
+            
+            # 步骤5: 从ASC文件读取报文（取最后N秒的消息）
+            if latest_asc_file.endswith('.asc'):
+                all_messages = _read_messages_from_asc(latest_asc_file, lookback_seconds=lookback_seconds)
+            else:
+                all_messages = _read_messages_from_blf(latest_asc_file, lookback_seconds=lookback_seconds)
+            
+            # 步骤6: 按报文ID过滤
+            expected_ids = step.check_message_ids or []
+            if expected_ids:
+                parsed_filter_ids = [_parse_id(fid) for fid in expected_ids]
+                messages = [msg for msg in all_messages if _parse_id(msg['id']) in parsed_filter_ids]
+                print(f"[CHECK_SIGNALS] Filtered by IDs {expected_ids}: {len(all_messages)} -> {len(messages)} messages")
+                # 调试：显示所有报文ID的分布
+                id_counts = {}
+                for msg in all_messages:
+                    msg_id = msg.get('id', 'unknown')
+                    id_counts[msg_id] = id_counts.get(msg_id, 0) + 1
+                print(f"[CHECK_SIGNALS] All message IDs in window: {id_counts}")
+            else:
+                messages = all_messages
 
-                # 获取当前时间作为基准
-                import time as time_module
+            # 步骤6: 重新开始录制
+            new_blf = os.path.join(log_dir, f"can_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}_resume.blf")
+            _set_blf_log_file(new_blf)
+            _start_logging(new_blf)
+            print(f"[CHECK_SIGNALS] Resumed logging to: {new_blf}")
 
-                for msg in messages[: (step.check_max_frames or 10)]:
+            if not messages:
+                return StepResult(
+                    step_id=step.step_id,
+                    step_type=step_type_str,
+                    status="failed",
+                    error_message=f"No messages in log file within time window [last {lookback_ms}ms]",
+                    timestamp=timestamp,
+                )
+
+            if is_temporal_mode:
+                # ========== 时序模式 ==========
+                # 初始化时序跟踪: 每个条件独立跟踪
+                # {condition_index: {"first_frame_timestamp": None, "consecutive_count": 0}}
+                condition_trackers = {}
+                for idx, cond in enumerate(step.conditions):
+                    condition_trackers[idx] = {
+                        "first_frame_timestamp": None,
+                        "consecutive_count": 0
+                    }
+
+                # 每个条件独立跟踪，完全独立判断
+                for msg in messages:
                     try:
                         decoded = decode_can_signal(step.check_dbc_path, msg['id'], msg['data'])
                         signals = decoded.get('signals', {})
-                        current_time = time_module.time() * 1000
+                        # 使用报文自己的时间戳（转换为毫秒）
+                        current_time = msg.get('timestamp_us', 0) / 1000.0
 
-                        # 检查所有条件
-                        all_conditions_met = True
-                        condition_holds = {}  # signal_name -> bool (是否满足hold)
-
-                        for cond in step.conditions:
+                        # 独立处理每个条件，互不影响
+                        for idx, cond in enumerate(step.conditions):
                             signal_name = cond.get('signal')
                             operator = cond.get('operator')
                             expected_value = cond.get('value')
+                            # 获取该条件特有的hold参数
+                            cond_hold_max_frames = cond.get('hold_max_frames') if cond.get('hold_max_frames') is not None else step.hold_max_frames
+                            cond_hold_duration_ms = cond.get('hold_duration_ms') if cond.get('hold_duration_ms') is not None else step.hold_duration_ms
+                            
+                            tracker = condition_trackers[idx]
 
                             if operator in ('exists', 'not_exists'):
                                 signal_found = signal_name in signals
-                                if operator == 'exists' and not signal_found:
-                                    condition_holds[signal_name] = False
-                                    all_conditions_met = False
-                                elif operator == 'not_exists' and signal_found:
-                                    condition_holds[signal_name] = False
-                                    all_conditions_met = False
+                                if (operator == 'exists' and signal_found) or (operator == 'not_exists' and not signal_found):
+                                    # 条件满足，不累加（exists/not_exists不需要hold）
+                                    tracker["passed"] = True
                                 else:
-                                    condition_holds[signal_name] = True
+                                    tracker["passed"] = False
                             else:
                                 if signal_name not in signals:
-                                    condition_holds[signal_name] = False
-                                    all_conditions_met = False
+                                    # 信号不存在，重置该条件的tracker
+                                    tracker["first_frame_timestamp"] = None
+                                    tracker["consecutive_count"] = 0
+                                    tracker["passed"] = False
                                     continue
 
                                 actual = signals[signal_name]
                                 tolerance = step.tolerance_value
                                 condition_match = _evaluate_condition(actual, operator, expected_value, tolerance)
 
-                                tracker = signal_trackers.get(signal_name, {
-                                    "first_frame_timestamp": None,
-                                    "consecutive_count": 0
-                                })
-
                                 if condition_match:
-                                    # 信号值匹配，累加计数
+                                    # 信号值匹配，累加计数（独立于其他条件）
                                     if tracker["first_frame_timestamp"] is None:
                                         tracker["first_frame_timestamp"] = current_time
                                     tracker["consecutive_count"] += 1
-                                    signal_trackers[signal_name] = tracker
 
-                                    # 检查hold条件
-                                    hold_satisfied = False
-                                    if step.hold_max_frames and step.hold_max_frames > 0:
-                                        if tracker["consecutive_count"] >= step.hold_max_frames:
-                                            hold_satisfied = True
-                                    if step.hold_duration_ms and step.hold_duration_ms > 0:
+                                    # 检查该条件自己的hold参数
+                                    hold_satisfied = True
+                                    if cond_hold_max_frames and cond_hold_max_frames > 0:
+                                        if tracker["consecutive_count"] < cond_hold_max_frames:
+                                            hold_satisfied = False
+                                    if cond_hold_duration_ms and cond_hold_duration_ms > 0:
                                         elapsed = current_time - tracker["first_frame_timestamp"]
-                                        if elapsed >= step.hold_duration_ms:
-                                            hold_satisfied = True
-
-                                    condition_holds[signal_name] = hold_satisfied
-                                    if not hold_satisfied:
-                                        all_conditions_met = False
+                                        if elapsed < cond_hold_duration_ms:
+                                            hold_satisfied = False
+                                    
+                                    tracker["passed"] = hold_satisfied
                                 else:
-                                    # 信号值不匹配，重置
+                                    # 信号值不匹配，重置该条件的tracker（只影响自己）
                                     tracker["first_frame_timestamp"] = None
                                     tracker["consecutive_count"] = 0
-                                    signal_trackers[signal_name] = tracker
-                                    condition_holds[signal_name] = False
-                                    all_conditions_met = False
+                                    tracker["passed"] = False
 
-                        # 如果所有条件都满足hold，返回成功
-                        if all_conditions_met and condition_holds:
+                        # 检查是否所有条件都满足
+                        all_conditions_passed = all(
+                            condition_trackers[idx].get("passed", False) 
+                            for idx in range(len(step.conditions))
+                        )
+
+                        # 如果所有条件都满足，返回成功
+                        if all_conditions_passed:
                             return StepResult(
                                 step_id=step.step_id,
                                 step_type=step_type_str,
@@ -473,51 +547,70 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
                     except Exception:
                         continue
 
-                # 构建失败信息
-                failed_info = []
-                for signal_name, tracker in signal_trackers.items():
+                # 构建详细的失败信息
+                total_frames_checked = len(messages)
+
+                failed_info_parts = [
+                    f"[CHECK_SIGNALS Failed] Checked {total_frames_checked} frames from log file"
+                ]
+
+                # 添加每个条件的状态（独立报告）
+                for idx, cond in enumerate(step.conditions):
+                    signal_name = cond.get('signal')
+                    operator = cond.get('operator')
+                    expected_value = cond.get('value')
+                    cond_hold_max_frames = cond.get('hold_max_frames') if cond.get('hold_max_frames') is not None else step.hold_max_frames
+                    cond_hold_duration_ms = cond.get('hold_duration_ms') if cond.get('hold_duration_ms') is not None else step.hold_duration_ms
+                    tracker = condition_trackers[idx]
+
+                    # 查找该信号的最后实际值
+                    last_actual = None
+                    for msg in messages:
+                        try:
+                            decoded = decode_can_signal(step.check_dbc_path, msg['id'], msg['data'])
+                            if signal_name in decoded.get('signals', {}):
+                                last_actual = decoded['signals'][signal_name]
+                        except Exception:
+                            continue
+
+                    hold_req_str = []
+                    if cond_hold_max_frames:
+                        hold_req_str.append(f"{cond_hold_max_frames} frames")
+                    if cond_hold_duration_ms:
+                        hold_req_str.append(f"{cond_hold_duration_ms}ms")
+
                     if tracker["consecutive_count"] > 0:
-                        failed_info.append(
-                            f"Signal '{signal_name}': held {tracker['consecutive_count']} frames, "
-                            f"elapsed {current_time - tracker['first_frame_timestamp']:.0f}ms"
+                        elapsed = current_time - tracker["first_frame_timestamp"] if tracker["first_frame_timestamp"] else 0
+                        hold_status = []
+                        if cond_hold_max_frames:
+                            hold_status.append(f"{tracker['consecutive_count']}/{cond_hold_max_frames} frames")
+                        if cond_hold_duration_ms:
+                            hold_status.append(f"{elapsed:.0f}/{cond_hold_duration_ms}ms")
+
+                        failed_info_parts.append(
+                            f"  - [{idx}] Signal '{signal_name}': actual={last_actual}, expected {operator} {expected_value}, "
+                            f"held {', '.join(hold_status)} (required: {', '.join(hold_req_str)})"
+                        )
+                    else:
+                        failed_info_parts.append(
+                            f"  - [{idx}] Signal '{signal_name}': actual={last_actual}, expected {operator} {expected_value}, "
+                            f"held 0 frames (required: {', '.join(hold_req_str) if hold_req_str else 'immediate'})"
                         )
 
                 return StepResult(
                     step_id=step.step_id,
                     step_type=step_type_str,
                     status="failed",
-                    error_message="; ".join(failed_info) if failed_info else "Hold conditions not satisfied",
+                    error_message="\n".join(failed_info_parts),
                     timestamp=timestamp,
                 )
 
             else:
                 # ========== 立即模式 (原有逻辑) ==========
-                # 从FIFO获取报文
-                timeout = step.check_timeout_ms or 1000
-
-                # 如果设置了 clear_fifo_before，清空FIFO缓冲区
-                if step.clear_fifo_before:
-                    _start_canfd_reception(channel)
-
-                messages = _get_canfd_messages(
-                    channel=channel,
-                    timeout_ms=timeout,
-                    expected_ids=step.check_message_ids or [],
-                    include_tx=True,
-                )
-
-                if not messages:
-                    return StepResult(
-                        step_id=step.step_id,
-                        step_type=step_type_str,
-                        status="failed",
-                        error_message="No messages received",
-                        timestamp=timestamp,
-                    )
-
+                # 使用已经过滤好的 messages（在时序模式前已处理）
                 failed_conditions = []
 
-                for msg in messages[: (step.check_max_frames or 10)]:
+                for msg in messages:
                     try:
                         decoded = decode_can_signal(step.check_dbc_path, msg['id'], msg['data'])
                         signals = decoded.get('signals', {})
