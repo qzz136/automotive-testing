@@ -1,0 +1,2385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenCode Agent 车载DKC测试指南</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --dark-bg: #0a0a0f;
+            --card-bg: rgba(20, 20, 35, 0.8);
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.7);
+            --accent-blue: #60a5fa;
+            --accent-purple: #a78bfa;
+            --accent-cyan: #22d3ee;
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--dark-bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: 
+                radial-gradient(ellipse at 20% 20%, rgba(102, 126, 234, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(118, 75, 162, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(34, 211, 238, 0.05) 0%, transparent 70%);
+            animation: bgPulse 8s ease-in-out infinite;
+        }
+
+        @keyframes bgPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        /* Floating particles */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--accent-cyan);
+            border-radius: 50%;
+            opacity: 0.3;
+            animation: float 20s infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            10% { opacity: 0.3; }
+            90% { opacity: 0.3; }
+            100% { transform: translateY(-100vh) rotate(720deg); opacity: 0; }
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 1rem 2rem;
+            background: rgba(10, 10, 15, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 700;
+            font-size: 1.25rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--primary-gradient);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            -webkit-text-fill-color: white;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-primary);
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6rem 2rem 4rem;
+            position: relative;
+        }
+
+        .hero-content {
+            max-width: 1000px;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(96, 165, 250, 0.1);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            border-radius: 50px;
+            font-size: 0.875rem;
+            color: var(--accent-blue);
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            animation: fadeInUp 0.6s ease-out 0.1s both;
+        }
+
+        .hero h1 span {
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto 3rem;
+            animation: fadeInUp 0.6s ease-out 0.2s both;
+        }
+
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 4rem;
+            margin-top: 4rem;
+            animation: fadeInUp 0.6s ease-out 0.3s both;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: var(--success-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Section Styles */
+        section {
+            padding: 6rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .section-tag {
+            display: inline-block;
+            padding: 0.375rem 1rem;
+            background: rgba(167, 139, 250, 0.1);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent-purple);
+            margin-bottom: 1rem;
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .section-desc {
+            font-size: 1.125rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Architecture Diagram */
+        .architecture {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 3rem;
+            border: 1px solid var(--border-color);
+            margin: 2rem 0;
+        }
+
+        .arch-flow {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .arch-node {
+            flex: 1;
+            min-width: 180px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .arch-node:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-blue);
+            box-shadow: 0 10px 40px rgba(96, 165, 250, 0.2);
+        }
+
+        .arch-node-icon {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 1rem;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+        }
+
+        .arch-node:nth-child(1) .arch-node-icon { background: var(--primary-gradient); }
+        .arch-node:nth-child(3) .arch-node-icon { background: var(--secondary-gradient); }
+        .arch-node:nth-child(5) .arch-node-icon { background: var(--success-gradient); }
+        .arch-node:nth-child(7) .arch-node-icon { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+
+        .arch-node h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .arch-node p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .arch-arrow {
+            font-size: 1.5rem;
+            color: var(--accent-cyan);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+
+        /* Feature Cards */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-top: 3rem;
+        }
+
+        .feature-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 2rem;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary-gradient);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(96, 165, 250, 0.3);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .feature-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .feature-icon {
+            width: 50px;
+            height: 50px;
+            background: rgba(96, 165, 250, 0.1);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .feature-card h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        .feature-card p {
+            font-size: 0.9375rem;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        /* Code Blocks */
+        .code-section {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 2.5rem;
+            border: 1px solid var(--border-color);
+            margin: 2rem 0;
+        }
+
+        .code-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+
+        .code-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 600;
+        }
+
+        .code-dots {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .code-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .code-dot.red { background: #ff5f56; }
+        .code-dot.yellow { background: #ffbd2e; }
+        .code-dot.green { background: #27c93f; }
+
+        pre {
+            background: #0d0d12;
+            border-radius: 12px;
+            padding: 1.5rem;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            line-height: 1.7;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        code {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .code-keyword { color: #ff79c6; }
+        .code-string { color: #f1fa8c; }
+        .code-function { color: #50fa7b; }
+        .code-comment { color: #6272a4; }
+        .code-number { color: #bd93f9; }
+        .code-class { color: #8be9fd; }
+
+        /* Workflow Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 3rem;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--primary-gradient);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 3rem;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -3rem;
+            top: 0;
+            width: 16px;
+            height: 16px;
+            background: var(--dark-bg);
+            border: 3px solid var(--accent-blue);
+            border-radius: 50%;
+            transform: translateX(-7px);
+        }
+
+        .timeline-content {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 2rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .timeline-step {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: var(--primary-gradient);
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .timeline-content h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .timeline-content p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        /* Tool Cards */
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 3rem;
+        }
+
+        .tool-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .tool-card:hover {
+            border-color: var(--accent-purple);
+            transform: translateY(-3px);
+        }
+
+        .tool-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .tool-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            background: rgba(167, 139, 250, 0.1);
+        }
+
+        .tool-name {
+            font-weight: 600;
+            font-size: 1.125rem;
+        }
+
+        .tool-type {
+            font-size: 0.75rem;
+            color: var(--accent-purple);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .tool-desc {
+            font-size: 0.9375rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* Interactive Demo */
+        .demo-container {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 3rem;
+            border: 1px solid var(--border-color);
+            margin: 3rem 0;
+        }
+
+        .demo-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+        }
+
+        .demo-tab {
+            padding: 0.625rem 1.25rem;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .demo-tab:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .demo-tab.active {
+            color: var(--text-primary);
+            background: rgba(96, 165, 250, 0.1);
+            border-color: rgba(96, 165, 250, 0.3);
+        }
+
+        .demo-content {
+            display: none;
+        }
+
+        .demo-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Test Results */
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .results-table th {
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.375rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-passed {
+            background: rgba(39, 201, 63, 0.15);
+            color: #27c93f;
+        }
+
+        .status-failed {
+            background: rgba(255, 95, 86, 0.15);
+            color: #ff5f56;
+        }
+
+        /* Footer */
+        footer {
+            padding: 4rem 2rem;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+            margin-top: 4rem;
+        }
+
+        .footer-content {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .footer-logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+        }
+
+        .footer-text {
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .footer-links a:hover {
+            color: var(--accent-blue);
+        }
+
+        /* Scroll animations */
+        .scroll-reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.6s ease;
+        }
+
+        .scroll-reveal.revealed {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero-stats {
+                flex-direction: column;
+                gap: 2rem;
+            }
+
+            .arch-flow {
+                flex-direction: column;
+            }
+
+            .arch-arrow {
+                transform: rotate(90deg);
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .timeline {
+                padding-left: 2rem;
+            }
+
+            section {
+                padding: 4rem 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Effects -->
+    <div class="bg-animation"></div>
+    <div class="particles" id="particles"></div>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <div class="logo">
+                <div class="logo-icon">🚗</div>
+                <span>OpenCode DKC Testing</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#overview">概述</a></li>
+                <li><a href="#architecture">架构</a></li>
+                <li><a href="#features">功能</a></li>
+                <li><a href="#workflow">工作流</a></li>
+                <li><a href="#demo">演示</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="hero-badge">
+                <span>⚡</span>
+                <span>智能车载测试解决方案</span>
+            </div>
+            <h1>
+                使用 <span>OpenCode Agent</span><br>
+                进行车载DKC测试
+            </h1>
+            <p class="hero-subtitle">
+                通过MCP协议和技能系统，OpenCode Agent能够与TSMaster测试环境无缝集成，
+                实现CAN/CANFD报文的自动收发、信号解码和时序验证。
+            </p>
+            <div class="hero-stats">
+                <div class="stat-item">
+                    <div class="stat-value">12+</div>
+                    <div class="stat-label">测试步骤类型</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">2</div>
+                    <div class="stat-label">核心MCP工具</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">100%</div>
+                    <div class="stat-label">自动化测试</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Overview Section -->
+    <section id="overview" class="scroll-reveal">
+        <div class="section-header">
+            <div class="section-tag">概述</div>
+            <h2 class="section-title">什么是车载DKC测试？</h2>
+            <p class="section-desc">
+                DKC（数字钥匙控制器）是汽车数字钥匙系统的核心，负责无钥匙进入、启动授权、身份认证等功能。
+                通过OpenCode Agent，测试人员可以用自然语言描述测试场景，Agent自动执行复杂的测试序列。
+            </p>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📡</div>
+                <h3>CAN/CANFD 报文收发</h3>
+                <p>支持单帧发送、周期发送、报文接收等多种通信模式，覆盖车载网络测试的核心需求。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔍</div>
+                <h3>DBC信号解码</h3>
+                <p>使用DBC文件定义报文格式，自动将原始字节解码为有意义的信号值，支持复杂的数据结构。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⏱️</div>
+                <h3>时序信号检查</h3>
+                <p>验证信号在指定时间窗口内保持特定值，支持多信号联合检查，确保时序逻辑正确。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🤖</div>
+                <h3>智能设备控制</h3>
+                <p>集成智能小车和机械臂控制，实现物理世界的自动化测试操作。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📝</div>
+                <h3>自动日志记录</h3>
+                <p>测试过程中自动记录BLF/ASC格式的报文日志，便于事后分析和问题追溯。</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎯</div>
+                <h3>场景化测试</h3>
+                <p>通过定义测试场景和步骤序列，轻松构建复杂的测试用例，支持步骤间的数据传递。</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Architecture Section -->
+    <section id="architecture" class="scroll-reveal">
+        <div class="section-header">
+            <div class="section-tag">架构详解</div>
+            <h2 class="section-title">OpenCode Agent 完整架构</h2>
+            <p class="section-desc">
+                下图展示了OpenCode Agent如何通过Skills、MCP协议和内置工具协同工作，
+                实现与外部测试环境的智能交互。
+            </p>
+        </div>
+
+        <!-- 4层架构图 -->
+        <div class="architecture-diagram-v2">
+            
+            <!-- 第1层：用户提示词层 -->
+            <div class="arch-layer-v2 layer-1">
+                <div class="layer-label">Layer 1</div>
+                <div class="layer-title">用户提示词层</div>
+                <div class="arch-box-v2 user-box">
+                    <div class="box-icon">👤</div>
+                    <div class="box-title">User Prompt</div>
+                    <div class="box-desc">自然语言描述测试需求</div>
+                    <div class="prompt-example">
+                        <span class="quote">"测试数字钥匙靠近车辆后自动解锁"</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="arch-connector-v2">
+                <div class="connector-arrow">↓</div>
+            </div>
+
+            <!-- 第2层：LLM层 -->
+            <div class="arch-layer-v2 layer-2">
+                <div class="layer-label">Layer 2</div>
+                <div class="layer-title">LLM层</div>
+                <div class="arch-box-v2 llm-main-box">
+                    <div class="box-icon">🧠</div>
+                    <div class="box-title">OpenCode Agent</div>
+                    <div class="box-subtitle">LLM Core</div>
+                    <div class="box-features">
+                        <span class="feature-tag">意图理解</span>
+                        <span class="feature-tag">步骤规划</span>
+                        <span class="feature-tag">工具选择</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="arch-connector-v2">
+                <div class="connector-arrow">↓</div>
+            </div>
+
+            <!-- 第3层：工具层 -->
+            <div class="arch-layer-v2 layer-3">
+                <div class="layer-label">Layer 3</div>
+                <div class="layer-title">工具层</div>
+                <div class="tools-container">
+                    <!-- 内置工具 -->
+                    <div class="tool-group">
+                        <div class="group-title">🛠️ 内置工具</div>
+                        <div class="tool-chips">
+                            <span class="tool-chip">read</span>
+                            <span class="tool-chip">edit</span>
+                            <span class="tool-chip">write</span>
+                            <span class="tool-chip">bash</span>
+                            <span class="tool-chip">grep</span>
+                            <span class="tool-chip">lsp_*</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Skills -->
+                    <div class="tool-group">
+                        <div class="group-title">📚 Skills</div>
+                        <div class="server-chips">
+                            <span class="server-chip" style="border-color: #4facfe;">automotive-testing</span>
+                            <span class="server-chip" style="border-color: #f093fb;">mcp-builder</span>
+                            <span class="server-chip" style="border-color: #43e97b;">docx/excel/pdf</span>
+                        </div>
+                    </div>
+                    
+                    <!-- MCP Servers -->
+                    <div class="tool-group">
+                        <div class="group-title">📦 MCP Servers</div>
+                        <div class="server-chips">
+                            <span class="server-chip" style="border-color: #4facfe;">automotive-testing</span>
+                            <span class="server-chip" style="border-color: #43e97b;">filesystem</span>
+                            <span class="server-chip" style="border-color: #fa709a;">database</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="arch-connector-v2">
+                <div class="connector-arrow">↓</div>
+            </div>
+
+            <!-- 第4层：外部环境层 -->
+            <div class="arch-layer-v2 layer-4">
+                <div class="layer-label">Layer 4</div>
+                <div class="layer-title">外部环境层</div>
+                <div class="external-container">
+                    <div class="external-group">
+                        <div class="group-header">
+                            <span class="group-icon">🔌</span>
+                            <span class="group-name">TSMaster API</span>
+                        </div>
+                        <div class="group-items">
+                            <span class="item">COM接口</span>
+                            <span class="item">CAN/CANFD</span>
+                            <span class="item">信号编解码</span>
+                        </div>
+                    </div>
+                    
+                    <div class="external-group">
+                        <div class="group-header">
+                            <span class="group-icon">🌐</span>
+                            <span class="group-name">网络服务</span>
+                        </div>
+                        <div class="group-items">
+                            <span class="item">TCP (智能小车)</span>
+                            <span class="item">HTTP (机械臂)</span>
+                        </div>
+                    </div>
+                    
+                    <div class="external-group">
+                        <div class="group-header">
+                            <span class="group-icon">💾</span>
+                            <span class="group-name">文件系统</span>
+                        </div>
+                        <div class="group-items">
+                            <span class="item">DBC文件读取</span>
+                            <span class="item">BLF/ASC日志</span>
+                            <span class="item">视频录制存储</span>
+                        </div>
+                    </div>
+                    
+                    <div class="external-group">
+                        <div class="group-header">
+                            <span class="group-icon">🔧</span>
+                            <span class="group-name">物理设备</span>
+                        </div>
+                        <div class="group-items">
+                            <span class="item">CAN Hardware</span>
+                            <span class="item">DKC Device</span>
+                            <span class="item">Smart Car / Arm</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <style>
+            /* 新版4层架构图样式 */
+            .architecture-diagram-v2 {
+                background: var(--card-bg);
+                border-radius: 24px;
+                padding: 2rem;
+                border: 1px solid var(--border-color);
+                margin: 2rem 0;
+            }
+
+            .arch-layer-v2 {
+                margin: 1.5rem 0;
+                padding: 1.5rem;
+                border-radius: 16px;
+                border: 2px solid var(--border-color);
+                position: relative;
+            }
+
+            .layer-label {
+                position: absolute;
+                top: -12px;
+                left: 20px;
+                background: var(--card-bg);
+                padding: 0 10px;
+                font-size: 0.75rem;
+                color: var(--text-secondary);
+                font-weight: 600;
+            }
+
+            .layer-title {
+                text-align: center;
+                font-size: 1.125rem;
+                font-weight: 700;
+                margin-bottom: 1rem;
+                color: var(--text-primary);
+            }
+
+            /* 各层背景色 */
+            .layer-1 {
+                background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%);
+                border-color: rgba(102, 126, 234, 0.4);
+            }
+            .layer-2 {
+                background: linear-gradient(135deg, rgba(79, 172, 254, 0.15) 0%, rgba(0, 242, 254, 0.15) 100%);
+                border-color: rgba(79, 172, 254, 0.4);
+            }
+            .layer-3 {
+                background: linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(216, 180, 254, 0.15) 100%);
+                border-color: rgba(167, 139, 250, 0.4);
+            }
+            .layer-4 {
+                background: linear-gradient(135deg, rgba(250, 112, 154, 0.15) 0%, rgba(254, 225, 64, 0.15) 100%);
+                border-color: rgba(250, 112, 154, 0.4);
+            }
+
+            .arch-box-v2 {
+                background: rgba(255, 255, 255, 0.08);
+                border-radius: 12px;
+                padding: 1.5rem;
+                text-align: center;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
+
+            .box-icon {
+                font-size: 2rem;
+                margin-bottom: 0.5rem;
+            }
+
+            .box-title {
+                font-size: 1rem;
+                font-weight: 600;
+                margin-bottom: 0.25rem;
+            }
+
+            .box-subtitle {
+                font-size: 0.75rem;
+                color: var(--accent-cyan);
+                margin-bottom: 0.5rem;
+            }
+
+            .box-desc {
+                font-size: 0.875rem;
+                color: var(--text-secondary);
+                margin-bottom: 0.75rem;
+            }
+
+            .prompt-example {
+                background: rgba(0, 0, 0, 0.2);
+                padding: 0.75rem;
+                border-radius: 8px;
+                margin-top: 0.5rem;
+            }
+
+            .quote {
+                font-style: italic;
+                color: var(--accent-blue);
+                font-size: 0.875rem;
+            }
+
+            /* 连接线 */
+            .arch-connector-v2 {
+                display: flex;
+                justify-content: center;
+                padding: 0.5rem 0;
+            }
+
+            .connector-arrow {
+                font-size: 1.5rem;
+                color: var(--accent-cyan);
+                animation: pulse 2s infinite;
+            }
+
+            /* LLM层 */
+            .llm-main-box {
+                max-width: 400px;
+                margin: 0 auto;
+            }
+
+            .box-features {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+                justify-content: center;
+                margin-top: 0.75rem;
+            }
+
+            .feature-tag {
+                padding: 0.25rem 0.75rem;
+                background: rgba(79, 172, 254, 0.2);
+                border-radius: 50px;
+                font-size: 0.75rem;
+                color: var(--accent-blue);
+            }
+
+            /* 工具层 */
+            .tools-container {
+                display: grid;
+                grid-template-columns: 1fr 1.5fr 1fr;
+                gap: 1rem;
+            }
+
+            .tool-group {
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 12px;
+                padding: 1rem;
+            }
+
+            .group-title {
+                font-size: 0.875rem;
+                font-weight: 600;
+                margin-bottom: 0.75rem;
+                text-align: center;
+            }
+
+            .tool-chips {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.375rem;
+            }
+
+            .tool-chip {
+                padding: 0.25rem 0.5rem;
+                background: rgba(250, 112, 154, 0.2);
+                border-radius: 4px;
+                font-size: 0.6875rem;
+                font-family: 'JetBrains Mono', monospace;
+                color: #fa709a;
+            }
+
+            .server-chips {
+                display: flex;
+                flex-direction: column;
+                gap: 0.375rem;
+            }
+
+            .server-chip {
+                padding: 0.375rem 0.75rem;
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 4px;
+                font-size: 0.75rem;
+                border-left: 3px solid;
+            }
+
+            /* 外部环境层 */
+            .external-container {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 1rem;
+            }
+
+            .external-group {
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 12px;
+                padding: 1rem;
+            }
+
+            .group-header {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                margin-bottom: 0.75rem;
+                font-weight: 600;
+            }
+
+            .group-icon {
+                font-size: 1.25rem;
+            }
+
+            .group-items {
+                display: flex;
+                flex-direction: column;
+                gap: 0.375rem;
+            }
+
+            .item {
+                font-size: 0.8125rem;
+                color: var(--text-secondary);
+                padding-left: 0.5rem;
+                border-left: 2px solid rgba(250, 112, 154, 0.3);
+            }
+
+            /* 响应式 */
+            @media (max-width: 1024px) {
+                .llm-container {
+                    flex-direction: column;
+                }
+                
+                .tools-container {
+                    grid-template-columns: 1fr;
+                }
+                
+                .external-container {
+                    grid-template-columns: 1fr;
+                }
+            }
+        </style>
+
+
+
+        <!-- Automotive Testing MCP 核心架构 -->
+        <div class="section-header" style="margin-top: 4rem;">
+            <div class="section-tag">MCP核心架构</div>
+            <h2 class="section-title">Automotive Testing MCP 核心架构</h2>
+            <p class="section-desc">
+                本MCP Server是一个综合性的车载测试解决方案，不仅提供CAN/CANFD通信能力，
+                还集成智能小车控制、机械臂操作、NFC刷卡、视频录制等多种物理设备交互功能。
+            </p>
+        </div>
+
+        <!-- MCP Server功能全景图 -->
+        <div class="mcp-features-overview">
+            <div class="mcp-tool-cards">
+                <!-- 工具1: tsmaster_run_simulation -->
+                <div class="mcp-tool-card main-tool">
+                    <div class="tool-badge">核心工具</div>
+                    <div class="tool-header-large">
+                        <div class="tool-icon-large">📡</div>
+                        <div class="tool-info">
+                            <h4>tsmaster_run_simulation</h4>
+                            <p>执行DKC仿真测试场景</p>
+                        </div>
+                    </div>
+                    <div class="tool-capabilities">
+                        <div class="capability-group">
+                            <div class="capability-title">🚗 物理设备控制</div>
+                            <div class="capability-items">
+                                <span class="cap-item">智能小车开关控制 (TCP)</span>
+                                <span class="cap-item">智能小车区域移动</span>
+                                <span class="cap-item">机械臂旋转 (0-180°)</span>
+                                <span class="cap-item">NFC刷卡 + 视频录制</span>
+                            </div>
+                        </div>
+                        <div class="capability-group">
+                            <div class="capability-title">📡 CAN/CANFD通信</div>
+                            <div class="capability-items">
+                                <span class="cap-item">单帧报文收发</span>
+                                <span class="cap-item">周期报文发送</span>
+                                <span class="cap-item">报文接收验证</span>
+                                <span class="cap-item">BLF/ASC日志记录</span>
+                            </div>
+                        </div>
+                        <div class="capability-group">
+                            <div class="capability-title">🔍 信号处理</div>
+                            <div class="capability-items">
+                                <span class="cap-item">DBC信号解码</span>
+                                <span class="cap-item">时序信号检查</span>
+                                <span class="cap-item">多信号联合验证</span>
+                                <span class="cap-item">容差比较支持</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 工具2: encode_can_signal -->
+                <div class="mcp-tool-card secondary-tool">
+                    <div class="tool-badge secondary">辅助工具</div>
+                    <div class="tool-header-large">
+                        <div class="tool-icon-large">🔧</div>
+                        <div class="tool-info">
+                            <h4>encode_can_signal</h4>
+                            <p>CAN信号编码</p>
+                        </div>
+                    </div>
+                    <div class="tool-capabilities">
+                        <div class="capability-group">
+                            <div class="capability-title">📝 信号编码</div>
+                            <div class="capability-items">
+                                <span class="cap-item">DBC文件解析</span>
+                                <span class="cap-item">信号值到字节编码</span>
+                                <span class="cap-item">报文ID自动识别</span>
+                                <span class="cap-item">多信号同时编码</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 通信协议层 -->
+            <div class="protocol-layer">
+                <h4 class="layer-title">🔌 多协议设备通信层</h4>
+                <div class="protocol-grid">
+                    <div class="protocol-card">
+                        <div class="protocol-icon">🔌</div>
+                        <div class="protocol-name">TSMaster COM API</div>
+                        <div class="protocol-desc">通过COM组件与TSMaster软件通信，控制CAN硬件接口</div>
+                        <div class="protocol-tags">
+                            <span class="p-tag">CAN/CANFD</span>
+                            <span class="p-tag">报文收发</span>
+                            <span class="p-tag">信号编解码</span>
+                        </div>
+                    </div>
+                    <div class="protocol-card">
+                        <div class="protocol-icon">🌐</div>
+                        <div class="protocol-name">TCP/IP</div>
+                        <div class="protocol-desc">与智能小车建立TCP连接，发送控制指令并接收响应</div>
+                        <div class="protocol-tags">
+                            <span class="p-tag">192.168.1.1:2001</span>
+                            <span class="p-tag">开关控制</span>
+                            <span class="p-tag">区域移动</span>
+                        </div>
+                    </div>
+                    <div class="protocol-card">
+                        <div class="protocol-icon">📹</div>
+                        <div class="protocol-name">HTTP + OpenCV</div>
+                        <div class="protocol-desc">HTTP控制机械臂，OpenCV录制NFC刷卡过程视频</div>
+                        <div class="protocol-tags">
+                            <span class="p-tag">192.168.2.1</span>
+                            <span class="p-tag">机械臂旋转</span>
+                            <span class="p-tag">视频录制</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <style>
+            /* MCP功能概览样式 */
+            .mcp-features-overview {
+                margin: 2rem 0;
+            }
+
+            .mcp-tool-cards {
+                display: grid;
+                grid-template-columns: 2fr 1fr;
+                gap: 1.5rem;
+                margin-bottom: 2rem;
+            }
+
+            .mcp-tool-card {
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 20px;
+                padding: 2rem;
+                border: 1px solid var(--border-color);
+                position: relative;
+                transition: all 0.3s ease;
+            }
+
+            .mcp-tool-card:hover {
+                transform: translateY(-5px);
+                border-color: var(--accent-blue);
+                box-shadow: 0 20px 60px rgba(96, 165, 250, 0.2);
+            }
+
+            .tool-badge {
+                position: absolute;
+                top: 1rem;
+                right: 1rem;
+                padding: 0.375rem 1rem;
+                background: var(--primary-gradient);
+                border-radius: 50px;
+                font-size: 0.75rem;
+                font-weight: 600;
+            }
+
+            .tool-badge.secondary {
+                background: var(--secondary-gradient);
+            }
+
+            .tool-header-large {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                margin-bottom: 1.5rem;
+                margin-top: 0.5rem;
+            }
+
+            .tool-icon-large {
+                width: 60px;
+                height: 60px;
+                background: var(--primary-gradient);
+                border-radius: 16px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.75rem;
+            }
+
+            .secondary-tool .tool-icon-large {
+                background: var(--secondary-gradient);
+            }
+
+            .tool-info h4 {
+                font-size: 1.25rem;
+                font-weight: 600;
+                margin-bottom: 0.25rem;
+            }
+
+            .tool-info p {
+                font-size: 0.875rem;
+                color: var(--text-secondary);
+            }
+
+            .tool-capabilities {
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .main-tool .tool-capabilities {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 1rem;
+            }
+
+            .capability-group {
+                background: rgba(255, 255, 255, 0.03);
+                border-radius: 12px;
+                padding: 1rem;
+            }
+
+            .capability-title {
+                font-size: 0.875rem;
+                font-weight: 600;
+                margin-bottom: 0.75rem;
+                color: var(--accent-cyan);
+            }
+
+            .capability-items {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .cap-item {
+                font-size: 0.8125rem;
+                color: var(--text-secondary);
+                padding-left: 0.5rem;
+                border-left: 2px solid rgba(96, 165, 250, 0.3);
+            }
+
+            /* 协议层 */
+            .protocol-layer {
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 20px;
+                padding: 2rem;
+                border: 1px solid var(--border-color);
+            }
+
+            .layer-title {
+                font-size: 1.125rem;
+                font-weight: 600;
+                margin-bottom: 1.5rem;
+                text-align: center;
+            }
+
+            .protocol-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 1.5rem;
+            }
+
+            .protocol-card {
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 16px;
+                padding: 1.5rem;
+                text-align: center;
+                transition: all 0.3s;
+            }
+
+            .protocol-card:hover {
+                background: rgba(255, 255, 255, 0.08);
+                transform: translateY(-3px);
+            }
+
+            .protocol-icon {
+                font-size: 2rem;
+                margin-bottom: 0.75rem;
+            }
+
+            .protocol-name {
+                font-weight: 600;
+                font-size: 1rem;
+                margin-bottom: 0.5rem;
+            }
+
+            .protocol-desc {
+                font-size: 0.8125rem;
+                color: var(--text-secondary);
+                margin-bottom: 1rem;
+                line-height: 1.5;
+            }
+
+            .protocol-tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.375rem;
+                justify-content: center;
+            }
+
+            .p-tag {
+                padding: 0.25rem 0.5rem;
+                background: rgba(96, 165, 250, 0.15);
+                border-radius: 4px;
+                font-size: 0.6875rem;
+                color: var(--accent-blue);
+            }
+
+            /* 响应式 */
+            @media (max-width: 1200px) {
+                .external-container {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+            }
+
+            @media (max-width: 1024px) {
+                .tools-container {
+                    grid-template-columns: 1fr;
+                }
+                
+                .external-container {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+            }
+
+                .main-tool .tool-capabilities {
+                    grid-template-columns: 1fr;
+                }
+
+                .protocol-grid {
+                    grid-template-columns: 1fr;
+                }
+            }
+        </style>
+
+        <!-- 简化的架构流程 -->
+        <div class="architecture" style="margin-top: 2rem;">
+            <div class="arch-flow">
+                <div class="arch-node">
+                    <div class="arch-node-icon">🧠</div>
+                    <h4>OpenCode Agent</h4>
+                    <p>LLM智能体，调用MCP工具</p>
+                </div>
+                <div class="arch-arrow">→</div>
+                <div class="arch-node">
+                    <div class="arch-node-icon">📡</div>
+                    <h4>Automotive MCP</h4>
+                    <p>提供测试工具和数据模型</p>
+                </div>
+                <div class="arch-arrow">→</div>
+                <div class="arch-node">
+                    <div class="arch-node-icon">⚙️</div>
+                    <h4>tsmaster模块</h4>
+                    <p>封装CAN、TCP、HTTP协议</p>
+                </div>
+                <div class="arch-arrow">→</div>
+                <div class="arch-node">
+                    <div class="arch-node-icon">🔌</div>
+                    <h4>物理设备层</h4>
+                    <p>CAN硬件、智能小车、机械臂</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="code-section">
+            <div class="code-header">
+                <div class="code-title">
+                    <span>🐍</span>
+                    <span>Automotive Testing MCP Server 实现</span>
+                </div>
+                <div class="code-dots">
+                    <div class="code-dot red"></div>
+                    <div class="code-dot yellow"></div>
+                    <div class="code-dot green"></div>
+                </div>
+            </div>
+            <pre><code><span class="code-comment"># Automotive Testing MCP Server - 车载DKC综合测试解决方案</span>
+<span class="code-comment"># 功能包括：CAN/CANFD通信、智能小车控制、机械臂操作、NFC刷卡、视频录制</span>
+<span class="code-keyword">from</span> mcp.server.fastmcp <span class="code-keyword">import</span> FastMCP
+<span class="code-keyword">from</span> tsmaster <span class="code-keyword">import</span> ECUSimulationScenario, _execute_step
+
+<span class="code-comment"># 初始化 MCP Server</span>
+mcp = FastMCP(<span class="code-string">"automotive-testing"</span>)
+
+<span class="code-keyword">@mcp.tool</span>(
+    name=<span class="code-string">"tsmaster_run_simulation"</span>,
+    annotations={
+        <span class="code-string">"title"</span>: <span class="code-string">"执行DKC仿真测试场景"</span>,
+        <span class="code-string">"readOnlyHint"</span>: <span class="code-keyword">False</span>,
+    },
+)
+<span class="code-keyword">async def</span> <span class="code-function">tsmaster_run_simulation</span>(scenario: ECUSimulationScenario) -> <span class="code-class">str</span>:
+    <span class="code-string">"""执行DKC仿真测试序列"""</span>
+    _ensure_connected()
+    
+    <span class="code-comment"># 按顺序执行测试步骤</span>
+    sorted_steps = <span class="code-function">sorted</span>(scenario.steps, key=<span class="code-keyword">lambda</span> s: s.order)
+    step_results = []
+    
+    <span class="code-keyword">for</span> step <span class="code-keyword">in</span> sorted_steps:
+        result = <span class="code-function">_execute_step</span>(step, scenario.channel)
+        step_results.append(result)
+    
+    <span class="code-keyword">return</span> json.dumps({
+        <span class="code-string">"scenario_name"</span>: scenario.scenario_name,
+        <span class="code-string">"status"</span>: <span class="code-string">"completed"</span>,
+        <span class="code-string">"step_results"</span>: step_results
+    })</code></pre>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="scroll-reveal">
+        <div class="section-header">
+            <div class="section-tag">核心功能</div>
+            <h2 class="section-title">测试步骤类型</h2>
+            <p class="section-desc">
+                系统支持12+种测试步骤类型，覆盖从初始化到信号验证的完整测试流程。
+            </p>
+        </div>
+
+        <div class="tools-grid">
+            <div class="tool-card">
+                <div class="tool-header">
+                    <div class="tool-icon">🔌</div>
+                    <div>
+                        <div class="tool-name">INIT</div>
+                        <div class="tool-type">初始化</div>
+                    </div>
+                </div>
+                <p class="tool-desc">初始化测试环境，启动TSMaster报文记录（BLF格式），设置日志文件路径。</p>
+            </div>
+            <div class="tool-card">
+                <div class="tool-header">
+                    <div class="tool-icon">📤</div>
+                    <div>
+                        <div class="tool-name">SEND_SINGLE</div>
+                        <div class="tool-type">报文发送</div>
+                    </div>
+                </div>
+                <p class="tool-desc">发送单帧CAN/CANFD报文，支持标准帧和扩展帧，可配置数据长度码。</p>
+            </div>
+            <div class="tool-card">
+                <div class="tool-header">
+                    <div class="tool-icon">🔄</div>
+                    <div>
+                        <div class="tool-name">START_CYCLIC</div>
+                        <div class="tool-type">周期发送</div>
+                    </div>
+                </div>
+                <p class="tool-desc">启动周期报文发送，可配置发送周期（10ms-60s），模拟持续信号输出。</p>
+            </div>
+            <div class="tool-card">
+                <div class="tool-header">
+                    <div class="tool-icon">📥</div>
+                    <div>
+                        <div class="tool-name">RECEIVE</div>
+                        <div class="tool-type">报文接收</div>
+                    </div>
+                </div>
+                <p class="tool-desc">接收并验证总线报文，可指定期望接收的报文ID列表，支持超时检测。</p>
+            </div>
+            <div class="tool-card">
+                <div class="tool-header">
+                    <div class="tool-icon">⏸️</div>
+                    <div>
+                        <div class="tool-name">WAIT</div>
+                        <div class="tool-type">延时等待</div>
+                    </div>
+                </div>
+                <p class="tool-desc">等待指定时长，用于模拟真实场景中的时间延迟，或等待系统响应。</p>
+            </div>
+            <div class="tool-card">
+                <div class="tool-header">
+                    <div class="tool-icon">🚗</div>
+                    <div>
+                        <div class="tool-name">SMART_CAR_ZONE</div>
+                        <div class="tool-type">智能小车</div>
+                    </div>
+                </div>
+                <p class="tool-desc">控制智能小车移动到指定区域，用于物理世界的自动化测试操作。</p>
+            </div>
+            <div class="tool-card">
+                <div class="tool-header">
+                    <div class="tool-icon">🦾</div>
+                    <div>
+                        <div class="tool-name">MACHINE_ARM_ROTATION</div>
+                        <div class="tool-type">机械臂</div>
+                    </div>
+                </div>
+                <p class="tool-desc">控制机械臂旋转到指定角度（0-180度），支持NFC刷卡等物理操作。</p>
+            </div>
+            <div class="tool-card">
+                <div class="tool-header">
+                    <div class="tool-icon">🔍</div>
+                    <div>
+                        <div class="tool-name">CHECK_SIGNALS</div>
+                        <div class="tool-type">信号检查</div>
+                    </div>
+                </div>
+                <p class="tool-desc">检查信号条件是否满足，支持时序检查（连续N帧保持值）和容差比较。</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Workflow Section -->
+    <section id="workflow" class="scroll-reveal">
+        <div class="section-header">
+            <div class="section-tag">工作流程</div>
+            <h2 class="section-title">五步完成测试</h2>
+            <p class="section-desc">
+                用户通过自然语言描述测试需求，OpenCode Agent自动完成场景构建、执行和结果分析的完整测试流程。
+            </p>
+        </div>
+
+        <div class="timeline">
+            <!-- 步骤1: 用户描述需求 -->
+            <div class="timeline-item">
+                <div class="timeline-content">
+                    <div class="timeline-step user-step">👤 用户</div>
+                    <h3>描述测试需求</h3>
+                    <p>用户用自然语言描述测试场景，例如：<strong>"测试数字钥匙靠近车辆后自动解锁车门的功能"</strong></p>
+                    <div class="code-section" style="margin: 1rem 0 0; padding: 1rem;">
+                        <pre style="padding: 1rem;"><code><span class="code-comment"># 用户输入示例：</span>
+<span class="code-string">"请帮我测试DKC数字钥匙功能：
+1. 先发送唤醒信号
+2. 用智能小车模拟钥匙靠近到Zone 2
+3. 检查认证状态
+4. 模拟按键解锁
+5. 验证车门是否解锁"</span></code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 步骤2: Agent构建场景 -->
+            <div class="timeline-item">
+                <div class="timeline-content">
+                    <div class="timeline-step agent-step">🤖 Agent</div>
+                    <h3>自动构建测试场景</h3>
+                    <p>Agent理解用户需求，自动转换为结构化测试场景，配置测试步骤、报文参数和信号检查条件。</p>
+                    <div class="code-section" style="margin: 1rem 0 0; padding: 1rem;">
+                        <pre style="padding: 1rem;"><code><span class="code-comment"># Agent 自动生成：</span>
+scenario = ECUSimulationScenario(
+    scenario_name=<span class="code-string">"DKC数字钥匙认证测试"</span>,
+    steps=[
+        TestStep(step_type=StepType.INIT, ...),
+        TestStep(step_type=StepType.SEND_SINGLE, ...),
+        TestStep(step_type=StepType.SMART_CAR_ZONE, ...),
+        TestStep(step_type=StepType.CHECK_SIGNALS, ...),
+    ]
+)</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 步骤3: Agent执行测试 -->
+            <div class="timeline-item">
+                <div class="timeline-content">
+                    <div class="timeline-step agent-step">🤖 Agent</div>
+                    <h3>执行测试序列</h3>
+                    <p>Agent自动调用MCP工具，建立TSMaster连接，按顺序执行所有测试步骤，包括CAN报文收发、智能小车控制和信号检查。</p>
+                    <div class="code-section" style="margin: 1rem 0 0; padding: 1rem;">
+                        <pre style="padding: 1rem;"><code><span class="code-comment"># Agent 自动执行：</span>
+result = <span class="code-keyword">await</span> tsmaster_run_simulation(scenario)
+<span class="code-comment"># - 初始化CAN通道</span>
+<span class="code-comment"># - 发送唤醒报文</span>
+<span class="code-comment"># - 控制智能小车移动</span>
+<span class="code-comment"># - 检查信号条件</span></code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 步骤4: Agent验证信号 -->
+            <div class="timeline-item">
+                <div class="timeline-content">
+                    <div class="timeline-step agent-step">🤖 Agent</div>
+                    <h3>自动验证信号</h3>
+                    <p>Agent自动解码CAN报文，验证信号值是否符合预期。支持时序检查（连续多帧保持值）和多信号联合验证。</p>
+                    <div class="code-section" style="margin: 1rem 0 0; padding: 1rem;">
+                        <pre style="padding: 1rem;"><code><span class="code-comment"># Agent 自动验证：</span>
+conditions=[
+    {<span class="code-string">"signal"</span>: <span class="code-string">"DoorUnLock"</span>, 
+     <span class="code-string">"operator"</span>: <span class="code-string">"=="</span>, 
+     <span class="code-string">"value"</span>: <span class="code-number">0</span>,  <span class="code-comment"># 验证解锁状态</span>
+     <span class="code-string">"hold_max_frames"</span>: <span class="code-number">20</span>}
+]</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 步骤5: Agent生成报告 -->
+            <div class="timeline-item">
+                <div class="timeline-content">
+                    <div class="timeline-step agent-step">🤖 Agent</div>
+                    <h3>生成测试报告</h3>
+                    <p>Agent自动生成详细测试报告，包括每个步骤的执行状态、耗时、信号验证结果和错误信息。</p>
+                    <div class="code-section" style="margin: 1rem 0 0; padding: 1rem;">
+                        <pre style="padding: 1rem;"><code>{
+  <span class="code-string">"scenario_name"</span>: <span class="code-string">"DKC数字钥匙认证测试"</span>,
+  <span class="code-string">"status"</span>: <span class="code-string">"completed"</span>,
+  <span class="code-string">"total_steps"</span>: <span class="code-number">8</span>,
+  <span class="code-string">"passed_steps"</span>: <span class="code-number">8</span>,
+  <span class="code-string">"total_duration_ms"</span>: <span class="code-number">9305</span>
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <style>
+            /* 用户和Agent步骤标识样式 */
+            .timeline-step.user-step {
+                background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                color: white;
+            }
+            .timeline-step.agent-step {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+            }
+        </style>
+    </section>
+
+    <!-- Demo Section -->
+    <section id="demo" class="scroll-reveal">
+        <div class="section-header">
+            <div class="section-tag">实际演示</div>
+            <h2 class="section-title">完整测试示例</h2>
+            <p class="section-desc">
+                以下是DKC测试、智能小车控制和机械臂NFC刷卡的实际测试示例，展示了多种测试场景的应用。
+            </p>
+        </div>
+
+        <div class="demo-container">
+            <div class="demo-tabs">
+                <button class="demo-tab active" onclick="switchTab('dkc')">DKC数字钥匙</button>
+                <button class="demo-tab" onclick="switchTab('smartcar')">智能小车</button>
+                <button class="demo-tab" onclick="switchTab('nfc')">机械臂NFC</button>
+                <button class="demo-tab" onclick="switchTab('signals')">信号编码</button>
+                <button class="demo-tab" onclick="switchTab('results')">执行结果</button>
+            </div>
+
+            <!-- DKC数字钥匙测试示例 -->
+            <div id="dkc" class="demo-content active">
+                <div class="code-header">
+                    <div class="code-title">
+                        <span>🔑</span>
+                        <span>dkc_auth_test.py - DKC数字钥匙认证测试</span>
+                    </div>
+                </div>
+                <pre><code><span class="code-keyword">from</span> tsmaster <span class="code-keyword">import</span> (
+    ECUSimulationScenario, TestStep, MessageFrame, StepType
+)
+
+<span class="code-comment"># DKC数字钥匙认证流程测试</span>
+<span class="code-comment"># 测试场景：通过智能小车搭载数字钥匙模拟数字钥匙靠近车辆、身份认证、解锁车门</span>
+scenario = ECUSimulationScenario(
+    scenario_name=<span class="code-string">"DKC数字钥匙认证测试"</span>,
+    channel=<span class="code-number">0</span>,
+    steps=[
+        <span class="code-comment"># 步骤1: 初始化测试环境，启动CAN报文记录</span>
+        TestStep(
+            step_id=<span class="code-string">"init"</span>,
+            step_type=StepType.INIT,
+            order=<span class="code-number">0</span>
+        ),
+        
+        <span class="code-comment"># 步骤2: 发送数字钥匙唤醒信号 (NW_WakeUP_signal)</span>
+        TestStep(
+            step_id=<span class="code-string">"send_dkey_wake"</span>,
+            step_type=StepType.SEND_SINGLE,
+            order=<span class="code-number">1</span>,
+            message=MessageFrame(
+                channel=<span class="code-number">0</span>,
+                identifier=<span class="code-string">"0x500"</span>,
+                data=[<span class="code-number">1</span>, <span class="code-number">0</span>, <span class="code-number">0</span>, <span class="code-number">0</span>, 
+                      <span class="code-number">0</span>, <span class="code-number">0</span>, <span class="code-number">0</span>, <span class="code-number">0</span>],
+                is_extended_id=<span class="code-keyword">False</span>
+            )
+        ),
+        
+        <span class="code-comment"># 步骤3: 智能小车移动到区域2 (模拟钥匙靠近)</span>
+        TestStep(
+            step_id=<span class="code-string">"car_move_zone2"</span>,
+            step_type=StepType.SMART_CAR_ZONE,
+            order=<span class="code-number">2</span>,
+            zone_value=<span class="code-number">2</span>
+        ),
+        
+        <span class="code-comment"># 步骤4: 等待车辆响应</span>
+        TestStep(
+            step_id=<span class="code-string">"wait_auth"</span>,
+            step_type=StepType.WAIT,
+            order=<span class="code-number">3</span>,
+            duration_ms=<span class="code-number">3000</span>
+        ),
+        
+        <span class="code-comment"># 步骤5: 检查DKC认证状态信号</span>
+        TestStep(
+            step_id=<span class="code-string">"check_dkey_auth"</span>,
+            step_type=StepType.CHECK_SIGNALS,
+            order=<span class="code-number">4</span>,
+            check_dbc_path=<span class="code-string">"vehicle.dbc"</span>,
+            check_message_ids=[<span class="code-string">"0x251"</span>],
+            wait_before_check_ms=<span class="code-number">2000</span>,
+            conditions=[
+                {
+                    <span class="code-string">"signal"</span>: <span class="code-string">"P_DKey_Welcome"</span>,
+                    <span class="code-string">"operator"</span>: <span class="code-string">"=="</span>,
+                    <span class="code-string">"value"</span>: <span class="code-number">1</span>,
+                    <span class="code-string">"hold_max_frames"</span>: <span class="code-number">20</span>
+                },
+                {
+                    <span class="code-string">"signal"</span>: <span class="code-string">"P_DKey_Area_PS"</span>,
+                    <span class="code-string">"operator"</span>: <span class="code-string">"=="</span>,
+                    <span class="code-string">"value"</span>: <span class="code-number">2</span>,
+                    <span class="code-string">"hold_duration_ms"</span>: <span class="code-number">2000</span>
+                }
+            ]
+        ),
+        
+        <span class="code-comment"># 步骤6: 通过智能小车控制数字钥匙模拟按键解锁</span>
+        
+        <span class="code-comment"># 步骤7: 验证车门解锁状态 (报文0x251)</span>
+        TestStep(
+            step_id=<span class="code-string">"check_door_unlock"</span>,
+            step_type=StepType.CHECK_SIGNALS,
+            order=<span class="code-number">6</span>,
+            check_dbc_path=<span class="code-string">"vehicle.dbc"</span>,
+            check_message_ids=[<span class="code-string">"0x251"</span>],
+            conditions=[
+                {
+                    <span class="code-string">"signal"</span>: <span class="code-string">"DoorUnLock"</span>,
+                    <span class="code-string">"operator"</span>: <span class="code-string">"=="</span>,
+                    <span class="code-string">"value"</span>: <span class="code-number">0</span>,  <span class="code-comment"># 解锁</span>
+                    <span class="code-string">"hold_max_frames"</span>: <span class="code-number">20</span>
+                }
+            ]
+        ),
+        
+        <span class="code-comment"># 步骤8: 验证车门开关状态 (报文0x116)</span>
+        TestStep(
+            step_id=<span class="code-string">"check_door_sw"</span>,
+            step_type=StepType.CHECK_SIGNALS,
+            order=<span class="code-number">7</span>,
+            check_dbc_path=<span class="code-string">"vehicle.dbc"</span>,
+            check_message_ids=[<span class="code-string">"0x116"</span>],
+            conditions=[
+                {
+                    <span class="code-string">"signal"</span>: <span class="code-string">"AllDoorSW"</span>,
+                    <span class="code-string">"operator"</span>: <span class="code-string">"=="</span>,
+                    <span class="code-string">"value"</span>: <span class="code-number">1</span>,  <span class="code-comment"># Open</span>
+                    <span class="code-string">"hold_max_frames"</span>: <span class="code-number">20</span>
+                }
+            ]
+        )
+    ]
+)</code></pre>
+            </div>
+
+            <!-- 智能小车测试示例 -->
+            <div id="smartcar" class="demo-content">
+                <div class="code-header">
+                    <div class="code-title">
+                        <span>🚗</span>
+                        <span>smart_car_test.py - 智能小车控制测试</span>
+                    </div>
+                </div>
+                <pre><code><span class="code-keyword">from</span> tsmaster <span class="code-keyword">import</span> (
+    ECUSimulationScenario, TestStep, MessageFrame, StepType
+)
+
+<span class="code-comment"># 智能小车控制测试 - 模拟钥匙靠近不同区域</span>
+scenario = ECUSimulationScenario(
+    scenario_name=<span class="code-string">"智能小车区域移动测试"</span>,
+    channel=<span class="code-number">0</span>,
+    steps=[
+        <span class="code-comment"># 步骤1: 初始化</span>
+        TestStep(
+            step_id=<span class="code-string">"init"</span>,
+            step_type=StepType.INIT,
+            order=<span class="code-number">0</span>
+        ),
+        
+        <span class="code-comment"># 步骤2: 移动到Zone 0 (远离车辆)</span>
+        TestStep(
+            step_id=<span class="code-string">"move_zone0"</span>,
+            step_type=StepType.SMART_CAR_ZONE,
+            order=<span class="code-number">1</span>,
+            zone_value=<span class="code-number">0</span>
+        ),
+        
+        <span class="code-comment"># 步骤3: 等待移动完成</span>
+        TestStep(
+            step_id=<span class="code-string">"wait_move0"</span>,
+            step_type=StepType.WAIT,
+            order=<span class="code-number">2</span>,
+            duration_ms=<span class="code-number">2000</span>
+        ),
+        
+        <span class="code-comment"># 步骤4: 移动到Zone 1 (进入迎宾区)</span>
+        TestStep(
+            step_id=<span class="code-string">"move_zone1"</span>,
+            step_type=StepType.SMART_CAR_ZONE,
+            order=<span class="code-number">3</span>,
+            zone_value=<span class="code-number">1</span>
+        ),
+        
+        <span class="code-comment"># 步骤5: 等待并验证迎宾信号</span>
+        TestStep(
+            step_id=<span class="code-string">"check_welcome"</span>,
+            step_type=StepType.WAIT,
+            order=<span class="code-number">4</span>,
+            duration_ms=<span class="code-number">1000</span>
+        ),
+        
+        <span class="code-comment"># 步骤6: 移动到Zone 2 (进入解锁区)</span>
+        TestStep(
+            step_id=<span class="code-string">"move_zone2"</span>,
+            step_type=StepType.SMART_CAR_ZONE,
+            order=<span class="code-number">5</span>,
+            zone_value=<span class="code-number">2</span>
+        ),
+        
+        <span class="code-comment"># 步骤7: 等待并检查解锁信号</span>
+        TestStep(
+            step_id=<span class="code-string">"check_unlock_zone"</span>,
+            step_type=StepType.CHECK_SIGNALS,
+            order=<span class="code-number">6</span>,
+            check_dbc_path=<span class="code-string">"vehicle.dbc"</span>,
+            check_message_ids=[<span class="code-string">"0x251"</span>],
+            conditions=[
+                {
+                    <span class="code-string">"signal"</span>: <span class="code-string">"P_DKey_Area_PS"</span>,
+                    <span class="code-string">"operator"</span>: <span class="code-string">"=="</span>,
+                    <span class="code-string">"value"</span>: <span class="code-number">2</span>
+                }
+            ]
+        ),
+        
+        <span class="code-comment"># 步骤8: 按下开关测试 (模拟按键)</span>
+        TestStep(
+            step_id=<span class="code-string">"press_switch"</span>,
+            step_type=StepType.SMART_CAR_SWITCH,
+            order=<span class="code-number">7</span>,
+            switch_value=<span class="code-number">1</span>,
+            keytime_ms=<span class="code-number">500</span>
+        )
+    ]
+)</code></pre>
+            </div>
+
+            <!-- 机械臂NFC测试示例 -->
+            <div id="nfc" class="demo-content">
+                <div class="code-header">
+                    <div class="code-title">
+                        <span>🦾</span>
+                        <span>nfc_arm_test.py - 机械臂NFC刷卡测试</span>
+                    </div>
+                </div>
+                <pre><code><span class="code-keyword">from</span> tsmaster <span class="code-keyword">import</span> (
+    ECUSimulationScenario, TestStep, MessageFrame, StepType
+)
+
+<span class="code-comment"># 机械臂NFC刷卡测试 - 模拟NFC卡片刷卡动作并录制视频</span>
+scenario = ECUSimulationScenario(
+    scenario_name=<span class="code-string">"机械臂NFC刷卡测试"</span>,
+    channel=<span class="code-number">0</span>,
+    steps=[
+        <span class="code-comment"># 步骤1: 初始化CAN记录</span>
+        TestStep(
+            step_id=<span class="code-string">"init"</span>,
+            step_type=StepType.INIT,
+            order=<span class="code-number">0</span>
+        ),
+        
+        <span class="code-comment"># 步骤2: 机械臂旋转到初始位置</span>
+        TestStep(
+            step_id=<span class="code-string">"arm_home"</span>,
+            step_type=StepType.MACHINE_ARM_ROTATION,
+            order=<span class="code-number">1</span>,
+            angle=<span class="code-number">0</span>
+        ),
+        
+        <span class="code-comment"># 步骤3: 等待机械臂就位</span>
+        TestStep(
+            step_id=<span class="code-string">"wait_arm"</span>,
+            step_type=StepType.WAIT,
+            order=<span class="code-number">2</span>,
+            duration_ms=<span class="code-number">2000</span>
+        ),
+        
+        <span class="code-comment"># 步骤4: 机械臂旋转到刷卡位置 (90度)</span>
+        TestStep(
+            step_id=<span class="code-string">"arm_to_nfc"</span>,
+            step_type=StepType.MACHINE_ARM_ROTATION,
+            order=<span class="code-number">3</span>,
+            angle=<span class="code-number">90</span>
+        ),
+        
+        <span class="code-comment"># 步骤5: 执行NFC刷卡 (带视频录制)</span>
+        TestStep(
+            step_id=<span class="code-string">"nfc_swipe"</span>,
+            step_type=StepType.NFC_START,
+            order=<span class="code-number">4</span>,
+            name=<span class="code-string">"DKC_NFC_Test_001"</span>
+        ),
+        
+        <span class="code-comment"># 步骤6: 等待刷卡响应</span>
+        TestStep(
+            step_id=<span class="code-string">"wait_nfc"</span>,
+            step_type=StepType.WAIT,
+            order=<span class="code-number">5</span>,
+            duration_ms=<span class="code-number">3000</span>
+        ),
+        
+        <span class="code-comment"># 步骤7: 检查NFC认证信号</span>
+        TestStep(
+            step_id=<span class="code-string">"check_nfc_auth"</span>,
+            step_type=StepType.CHECK_SIGNALS,
+            order=<span class="code-number">6</span>,
+            check_dbc_path=<span class="code-string">"vehicle.dbc"</span>,
+            check_message_ids=[<span class="code-string">"0x400"</span>],
+            conditions=[
+                {
+                    <span class="code-string">"signal"</span>: <span class="code-string">"NFC_Auth_Status"</span>,
+                    <span class="code-string">"operator"</span>: <span class="code-string">"=="</span>,
+                    <span class="code-string">"value"</span>: <span class="code-number">1</span>,  <span class="code-comment"># 认证成功</span>
+                    <span class="code-string">"hold_max_frames"</span>: <span class="code-number">10</span>
+                }
+            ]
+        ),
+        
+        <span class="code-comment"># 步骤8: 机械臂归位</span>
+        TestStep(
+            step_id=<span class="code-string">"arm_return"</span>,
+            step_type=StepType.MACHINE_ARM_ROTATION,
+            order=<span class="code-number">7</span>,
+            angle=<span class="code-number">0</span>
+        )
+    ]
+)</code></pre>
+            </div>
+
+            <div id="signals" class="demo-content">
+                <div class="code-header">
+                    <div class="code-title">
+                        <span>🔧</span>
+                        <span>使用 encode_can_signal 工具</span>
+                    </div>
+                </div>
+                <pre><code><span class="code-comment"># Agent 可以使用 encode_can_signal 工具编码信号</span>
+<span class="code-keyword">await</span> encode_can_signal(
+    dbc_path=<span class="code-string">"vehicle.dbc"</span>,
+    signals=[
+        SignalInput(signal=<span class="code-string">"P_DKey_Welcome"</span>, value=<span class="code-number">1</span>),
+        SignalInput(signal=<span class="code-string">"P_DKey_Area_PS"</span>, value=<span class="code-number">2</span>)
+    ]
+)
+
+<span class="code-comment"># 返回结果</span>
+{
+  <span class="code-string">"status"</span>: <span class="code-string">"success"</span>,
+  <span class="code-string">"frame_id"</span>: <span class="code-string">"0x251"</span>,
+  <span class="code-string">"message_name"</span>: <span class="code-string">"Body_1"</span>,
+  <span class="code-string">"data"</span>: [<span class="code-number">0</span>, <span class="code-number">0</span>, <span class="code-number">0</span>, <span class="code-number">0</span>, <span class="code-number">3</span>, <span class="code-number">0</span>, <span class="code-number">0</span>, <span class="code-number">0</span>]
+}</code></pre>
+            </div>
+
+            <div id="results" class="demo-content">
+                <div class="code-header">
+                    <div class="code-title">
+                        <span>📊</span>
+                        <span>DKC测试执行报告</span>
+                    </div>
+                </div>
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>步骤ID</th>
+                            <th>类型</th>
+                            <th>描述</th>
+                            <th>状态</th>
+                            <th>耗时</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>init</td>
+                            <td>INIT</td>
+                            <td>初始化环境，启动BLF记录</td>
+                            <td><span class="status-badge status-passed">✓ PASSED</span></td>
+                            <td>150ms</td>
+                        </tr>
+                        <tr>
+                            <td>send_dkey_wake</td>
+                            <td>SEND_SINGLE</td>
+                            <td>发送数字钥匙唤醒信号</td>
+                            <td><span class="status-badge status-passed">✓ PASSED</span></td>
+                            <td>50ms</td>
+                        </tr>
+                        <tr>
+                            <td>car_move_zone2</td>
+                            <td>SMART_CAR_ZONE</td>
+                            <td>智能小车移动到Zone 2</td>
+                            <td><span class="status-badge status-passed">✓ PASSED</span></td>
+                            <td>2500ms</td>
+                        </tr>
+                        <tr>
+                            <td>wait_auth</td>
+                            <td>WAIT</td>
+                            <td>等待认证响应</td>
+                            <td><span class="status-badge status-passed">✓ PASSED</span></td>
+                            <td>3000ms</td>
+                        </tr>
+                        <tr>
+                            <td>check_dkey_auth</td>
+                            <td>CHECK_SIGNALS</td>
+                            <td>验证P_DKey_Welcome和P_DKey_Area_PS</td>
+                            <td><span class="status-badge status-passed">✓ PASSED</span></td>
+                            <td>1040ms</td>
+                        </tr>
+                        <tr>
+                            <td>send_unlock</td>
+                            <td>SEND_SINGLE</td>
+                            <td>发送解锁指令</td>
+                            <td><span class="status-badge status-passed">✓ PASSED</span></td>
+                            <td>45ms</td>
+                        </tr>
+                        <tr>
+                            <td>check_unlock</td>
+                            <td>CHECK_SIGNALS</td>
+                            <td>验证车门解锁状态</td>
+                            <td><span class="status-badge status-passed">✓ PASSED</span></td>
+                            <td>520ms</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <pre style="margin-top: 1.5rem;"><code>{
+  <span class="code-string">"scenario_name"</span>: <span class="code-string">"DKC数字钥匙认证测试"</span>,
+  <span class="code-string">"status"</span>: <span class="code-string">"completed"</span>,
+  <span class="code-string">"total_steps"</span>: <span class="code-number">7</span>,
+  <span class="code-string">"passed_steps"</span>: <span class="code-number">7</span>,
+  <span class="code-string">"failed_steps"</span>: <span class="code-number">0</span>,
+  <span class="code-string">"skipped_steps"</span>: <span class="code-number">0</span>,
+  <span class="code-string">"total_duration_ms"</span>: <span class="code-number">9305</span>
+}</code></pre>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">OpenCode DKC Testing</div>
+            <p class="footer-text">
+                基于MCP协议的车载DKC智能测试解决方案<br>
+                让测试更智能、更高效、更可靠
+            </p>
+            <ul class="footer-links">
+                <li><a href="#">文档</a></li>
+                <li><a href="#">支持</a></li>
+            </ul>
+        </div>
+    </footer>
+
+    <script>
+        // Generate floating particles
+        function createParticles() {
+            const container = document.getElementById('particles');
+            const particleCount = 30;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+                particle.style.animationDelay = Math.random() * 5 + 's';
+                container.appendChild(particle);
+            }
+        }
+
+        // Tab switching
+        function switchTab(tabName) {
+            // Hide all contents
+            document.querySelectorAll('.demo-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active from all tabs
+            document.querySelectorAll('.demo-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected content
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active to clicked tab
+            event.target.classList.add('active');
+        }
+
+        // Scroll reveal animation
+        function scrollReveal() {
+            const elements = document.querySelectorAll('.scroll-reveal');
+            
+            elements.forEach(element => {
+                const elementTop = element.getBoundingClientRect().top;
+                const windowHeight = window.innerHeight;
+                
+                if (elementTop < windowHeight * 0.85) {
+                    element.classList.add('revealed');
+                }
+            });
+        }
+
+        // Smooth scroll for navigation
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Initialize
+        createParticles();
+        window.addEventListener('scroll', scrollReveal);
+        window.addEventListener('load', scrollReveal);
+    </script>
+</body>
+</html>

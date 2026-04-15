@@ -128,12 +128,15 @@ ruff check .
 - `_stop_all_cyclic_messages()`: 停止所有周期发送
 - `_start_canfd_reception()`: 开启接收FIFO
 - `_get_canfd_messages()`: 获取接收报文
+- `_start_logging()`, `_stop_logging()`: TSMaster报文录制控制
+- `_read_messages_from_blf()`, `_read_messages_from_asc()`: 从日志文件读取报文
 
 #### tsmaster/executor.py - 步骤执行
 - `_execute_step()`: 执行单个测试步骤
-- 支持: init_fifo, send_single, start_cyclic, stop_cyclic, wait, receive,
+- 支持: init, send_single, start_cyclic, stop_cyclic, wait, receive,
   smart_car_switch, smart_car_switch_alltime, smart_car_zone,
   machine_arm_rotation, nfc_start, decode_signals, check_signals
+- `_stop_logging()`, `_start_logging()`: BLF文件录制控制
 
 #### tsmaster/smart_car.py - 智能小车控制
 - `send_switch_value()`: 发送开关控制指令 (单次)
@@ -151,19 +154,25 @@ ruff check .
 - `EncodeResult`: 编码结果 (frame_id, message_name, data)
 
 #### CHECK_SIGNALS 步骤 - 信号条件检查
-支持时序信号检查，可检测信号在一段时间或多帧内保持指定值。
+从TSMaster录制的BLF/ASC文件读取报文，支持时序信号检查（检测信号在一段时间或多帧内保持指定值）。
 
 **参数**:
 - `check_dbc_path`: DBC文件路径
 - `check_message_ids`: 要检查的报文ID列表
-- `check_timeout_ms`: 超时时间（默认1000ms）
-- `check_max_frames`: 最大检查帧数（默认10）
-- `conditions`: 信号条件列表，格式: `[{"signal": "信号名", "operator": "==", "value": 值}]`
-- `hold_duration_ms`: 信号必须保持的毫秒数（可选，用于时序检查）
-- `hold_max_frames`: 信号必须保持的连续帧数（可选，用于时序检查）
+- `check_lookback_ms`: 检查回溯时间窗口（默认15000ms）
+- `wait_before_check_ms`: 执行前等待时间（默认5000ms，让信号稳定）
+- `conditions`: 信号条件列表，每项可包含独立的 `hold_max_frames` 和 `hold_duration_ms`
 - `tolerance_value`: 比较值的容差范围（可选，用于浮点比较）
 
+**条件格式**:
+```python
+{'signal': '信号名', 'operator': '==', 'value': 值, 'hold_max_frames': 20}
+{'signal': '信号名', 'operator': '==', 'value': 值, 'hold_duration_ms': 2000}
+```
+
 **操作符**: `==`, `!=`, `>`, `<`, `>=`, `<=`, `exists`, `not_exists`
+
+**判断逻辑**: 每个条件独立跟踪，一旦满足（passed=True）则保持直到检查结束。所有条件同时满足才算成功。
 
 **示例**:
 ```python
@@ -355,3 +364,11 @@ async def encode_can_signal(dbc_path: str, signals: List[SignalInput]) -> str:
 2. 实现新功能前，先查阅 `TSMaster_COM API_Python编程指导.pdf`
 3. TSMaster COM API参数类型：BSTR类型不能传二进制数据，需用Record结构体
 4. 测试结束后会自动调用 `_stop_all_cyclic_messages()` 清理周期发送
+
+## 项目状态
+
+**无CI/CD配置**: 项目目前没有GitHub Actions、Makefile或其他CI基础设施。
+
+**测试方式**: 使用内联Python脚本测试（见上方示例），非传统pytest框架。
+
+**代码质量**: 使用 `ruff check .` 进行lint检查。
