@@ -388,9 +388,23 @@ def _read_messages_from_asc(
         max_timestamp = max(msg['timestamp'] for msg in all_messages)
         # 计算时间窗口起点
         window_start = max_timestamp - lookback_seconds
+        
+        # 调试：显示 0x251 报文的时间戳分布
+        id_251_messages = [msg for msg in all_messages if msg['id'] == '0x251']
+        if id_251_messages:
+            ts_min = min(m['timestamp'] for m in id_251_messages)
+            ts_max = max(m['timestamp'] for m in id_251_messages)
+            print(f"[ASC] 0x251 messages: {len(id_251_messages)} frames, timestamp range: {ts_min:.2f} - {ts_max:.2f}")
+            print(f"[ASC] Window: {window_start:.2f} - {max_timestamp:.2f} (lookback {lookback_seconds}s)")
+        
         # 过滤消息
         messages = [msg for msg in all_messages if msg['timestamp'] >= window_start]
         print(f"[ASC] Total messages: {len(all_messages)}, Filtered (last {lookback_seconds}s): {len(messages)}")
+        
+        # 调试：显示过滤后 0x251 报文数量
+        filtered_251 = [msg for msg in messages if msg['id'] == '0x251']
+        print(f"[ASC] Filtered 0x251 messages: {len(filtered_251)} frames")
+        
         return messages
     
     return all_messages

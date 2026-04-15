@@ -381,11 +381,9 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
 
             # 步骤2: 停止录制，让TSMaster写入文件
             _stop_logging()
-            time.sleep(0.5)  # 等待文件写入完成
+            time.sleep(3)  # 等待TSMaster完成文件写入和格式转换
 
             # 步骤3: 查找最新的ASC文件
-            import time as time_module
-            
             log_dir = os.path.join(os.getcwd(), "logs", "can_messages")
             asc_files = []
             if os.path.exists(log_dir):
@@ -442,12 +440,6 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
             else:
                 messages = all_messages
 
-            # 步骤6: 重新开始录制
-            new_blf = os.path.join(log_dir, f"can_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}_resume.blf")
-            _set_blf_log_file(new_blf)
-            _start_logging(new_blf)
-            print(f"[CHECK_SIGNALS] Resumed logging to: {new_blf}")
-
             if not messages:
                 return StepResult(
                     step_id=step.step_id,
@@ -468,6 +460,9 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
                         "consecutive_count": 0
                     }
 
+                # 调试：统计每个信号值的分布
+                signal_value_counts = {cond.get('signal'): {} for cond in step.conditions}
+
                 # 每个条件独立跟踪，完全独立判断
                 for msg in messages:
                     try:
@@ -475,6 +470,12 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
                         signals = decoded.get('signals', {})
                         # 使用报文自己的时间戳（转换为毫秒）
                         current_time = msg.get('timestamp_us', 0) / 1000.0
+
+                        # 调试：统计信号值分布
+                        for signal_name in signal_value_counts:
+                            if signal_name in signals:
+                                val = signals[signal_name]
+                                signal_value_counts[signal_name][val] = signal_value_counts[signal_name].get(val, 0) + 1
 
                         # 独立处理每个条件，互不影响
                         for idx, cond in enumerate(step.conditions):
@@ -524,10 +525,11 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
                                     
                                     tracker["passed"] = hold_satisfied
                                 else:
-                                    # 信号值不匹配，重置该条件的tracker（只影响自己）
+                                    # 信号值不匹配，重置计数器（但保留已满足的passed状态）
                                     tracker["first_frame_timestamp"] = None
                                     tracker["consecutive_count"] = 0
-                                    tracker["passed"] = False
+                                    # 只有当条件还没满足时才重置passed
+                                    # 一旦满足，保持passed=True直到检查结束
 
                         # 检查是否所有条件都满足
                         all_conditions_passed = all(
@@ -537,6 +539,12 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
 
                         # 如果所有条件都满足，返回成功
                         if all_conditions_passed:
+                            # 步骤7: 重新开始录制（返回前）
+                            new_blf = os.path.join(log_dir, f"can_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}_resume.blf")
+                            _set_blf_log_file(new_blf)
+                            _start_logging(new_blf)
+                            print(f"[CHECK_SIGNALS] Resumed logging to: {new_blf}")
+                            
                             return StepResult(
                                 step_id=step.step_id,
                                 step_type=step_type_str,
@@ -546,6 +554,11 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
                             )
                     except Exception:
                         continue
+
+                # 调试：打印信号值分布
+                print("[CHECK_SIGNALS] Signal value distribution:")
+                for signal_name, value_counts in signal_value_counts.items():
+                    print(f"  {signal_name}: {value_counts}")
 
                 # 构建详细的失败信息
                 total_frames_checked = len(messages)
@@ -597,6 +610,12 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
                             f"held 0 frames (required: {', '.join(hold_req_str) if hold_req_str else 'immediate'})"
                         )
 
+                # 步骤7: 重新开始录制（返回前）
+                new_blf = os.path.join(log_dir, f"can_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}_resume.blf")
+                _set_blf_log_file(new_blf)
+                _start_logging(new_blf)
+                print(f"[CHECK_SIGNALS] Resumed logging to: {new_blf}")
+                
                 return StepResult(
                     step_id=step.step_id,
                     step_type=step_type_str,
@@ -643,6 +662,12 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
                                     all_passed = False
 
                         if all_passed:
+                            # 步骤7: 重新开始录制（返回前）
+                            new_blf = os.path.join(log_dir, f"can_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}_resume.blf")
+                            _set_blf_log_file(new_blf)
+                            _start_logging(new_blf)
+                            print(f"[CHECK_SIGNALS] Resumed logging to: {new_blf}")
+                            
                             return StepResult(
                                 step_id=step.step_id,
                                 step_type=step_type_str,
@@ -653,6 +678,12 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
                     except Exception:
                         continue
 
+                # 步骤7: 重新开始录制（返回前）
+                new_blf = os.path.join(log_dir, f"can_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}_resume.blf")
+                _set_blf_log_file(new_blf)
+                _start_logging(new_blf)
+                print(f"[CHECK_SIGNALS] Resumed logging to: {new_blf}")
+                
                 return StepResult(
                     step_id=step.step_id,
                     step_type=step_type_str,
@@ -660,6 +691,12 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
                     error_message="; ".join(failed_conditions) if failed_conditions else "No matching message found",
                     timestamp=timestamp,
                 )
+
+            # 步骤7: 时序模式结束后重新开始录制（失败时）
+            new_blf = os.path.join(log_dir, f"can_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}_resume.blf")
+            _set_blf_log_file(new_blf)
+            _start_logging(new_blf)
+            print(f"[CHECK_SIGNALS] Resumed logging to: {new_blf}")
 
         else:
             return StepResult(

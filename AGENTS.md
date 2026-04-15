@@ -25,28 +25,65 @@ automotive-testing/
 ## 运行与测试
 
 ### 运行测试（Python方式）
+
+直接导入 `tsmaster` 包中的函数进行测试：
+
 ```bash
-# 完整测试
 python -c "
 import sys
 sys.path.insert(0, '.')
 import asyncio
 import json
-import automotive_testing as tsm
-from tsmaster import ECUSimulationScenario, TestStep, MessageFrame, StepType
+from tsmaster import (
+    ECUSimulationScenario, TestStep, MessageFrame, StepType,
+    _execute_step, _ensure_connected, _stop_all_cyclic_messages, _stop_logging
+)
+
+async def tsmaster_run_simulation(scenario):
+    _ensure_connected()
+    results = []
+    for step in sorted(scenario.steps, key=lambda x: x.order):
+        result = _execute_step(step, scenario.channel)
+        results.append(result)
+    _stop_all_cyclic_messages()
+    _stop_logging()
+    return json.dumps({
+        'scenario_name': scenario.scenario_name,
+        'status': 'completed',
+        'step_results': [r.model_dump() for r in results]
+    }, indent=2, ensure_ascii=False)
 
 async def test():
-    data = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]
     scenario = ECUSimulationScenario(
-        scenario_name='Test',
+        scenario_name='Test CHECK_SIGNALS',
         channel=0,
         steps=[
-            TestStep(step_id='init', step_type=StepType.INIT_FIFO, order=0),
-            TestStep(step_id='send', step_type=StepType.SEND_SINGLE, order=1,
-                message=MessageFrame(channel=0, identifier='0x123', data=data)),
+            TestStep(step_id='init', step_type=StepType.INIT, order=0),
+            TestStep(step_id='zone0', step_type=StepType.SMART_CAR_ZONE, order=1, zone_value=0),
+            TestStep(
+                step_id='cyclic_500',
+                step_type=StepType.START_CYCLIC,
+                order=2,
+                period_ms=700,
+                message=MessageFrame(channel=0, identifier='0x500', data=[0,0,0,0,0,0,0,0])
+            ),
+            TestStep(step_id='wait', step_type=StepType.WAIT, order=3, duration_ms=2000),
+            TestStep(
+                step_id='check_signals',
+                step_type=StepType.CHECK_SIGNALS,
+                order=4,
+                check_dbc_path=r'D31L_15.3_CAN4_DKC_20251204_Draft.dbc',
+                check_message_ids=['0x251'],
+                check_lookback_ms=15000,
+                wait_before_check_ms=1000,
+                conditions=[
+                    {'signal': 'P_DKey_Welcome', 'operator': '==', 'value': 1, 'hold_max_frames': 20},
+                    {'signal': 'P_DKey_Area_PS', 'operator': '==', 'value': 2, 'hold_duration_ms': 2000}
+                ]
+            ),
         ]
     )
-    return await tsm.tsmaster_run_simulation(scenario)
+    return await tsmaster_run_simulation(scenario)
 
 result = asyncio.run(test())
 print(result)
