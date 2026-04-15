@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content=" Automotive ECU Simulation Testing Documentation">
+    <title>ECU Simulation Testing Documentation</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Prism.js CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Loading Animation -->
+    <div id="loader" class="loader">
+        <div class="loader-spinner"></div>
+        <p>加载中...</p>
+    </div>
+
+    <!-- Progress Indicator -->
+    <div class="progress-indicator"></div>
+
+    <!-- Slides Container -->
+    <div class="slides-container">
+        <section id="slide-1" class="slide active">
+            <h1 class="neon-text">OpenCode</h1>
+            <h2 class="neon-text-purple">车载ECU测试</h2>
+            <p class="subtitle">MCP驱动的智能测试解决方案</p>
+            <p class="intro">基于MCP协议的车载电子控制单元(ECU)仿真测试平台，提供CAN/CANFD报文收发、信号编码解码、智能设备控制等完整测试能力。通过TSMaster COM API实现硬件级总线通信，支持BLF日志录制与回放，满足汽车电子工程师的自动化测试需求。</p>
+            <div class="feature-list">
+                <span class="feature-item">CAN/CANFD</span>
+                <span class="feature-item">DBC编解码</span>
+                <span class="feature-item">智能硬件</span>
+                <span class="feature-item">MCP协议</span>
+            </div>
+        </section>
+        <section id="slide-2" class="slide">
+            <h2 class="neon-text">系统架构</h2>
+            <p class="arch-intro">采用MCP Server架构，封装TSMaster硬件接口，提供声明式测试场景定义。核心包含7个功能模块，实现从底层连接到高层测试逻辑的完整链路。</p>
+            <div class="arch-container">
+                <div class="arch-box neon-border">
+                    <h3>MCP Server</h3>
+                    <p>FastMCP框架</p>
+                </div>
+                <div class="arch-arrow">↓</div>
+                <div class="arch-layer">
+                    <div class="arch-box">models</div>
+                    <div class="arch-box">connection</div>
+                    <div class="arch-box">api</div>
+                    <div class="arch-box">executor</div>
+                    <div class="arch-box">encoder</div>
+                    <div class="arch-box">smart_car</div>
+                    <div class="arch-box">machine_arm</div>
+                </div>
+            </div>
+        </section>
+        <section id="slide-3" class="slide">
+            <h2 class="neon-text">核心功能</h2>
+            <div class="card-grid">
+                <div class="card neon-border">
+                    <h3>tsmaster_run_simulation</h3>
+                    <p>执行完整的ECU仿真测试场景，支持13种测试步骤类型，自动管理周期报文和日志录制。</p>
+                    <ul style="list-style: disc; padding-left: 1.5rem; color: var(--text-secondary);">
+                        <li>scenario: 测试场景定义容器</li>
+                        <li>自动BLF日志录制</li>
+                        <li>步骤执行状态跟踪</li>
+                        <li>返回详细执行报告</li>
+                    </ul>
+                    <div class="tag">CAN/CANFD</div>
+                    <div class="tag">TSMaster</div>
+                </div>
+                <div class="card neon-border">
+                    <h3>encode_can_signal</h3>
+                    <p>使用DBC文件将信号名称和物理值编码为CAN报文字节，支持多信号打包。</p>
+                    <ul style="list-style: disc; padding-left: 1.5rem; color: var(--text-secondary);">
+                        <li>dbc_path: DBC数据库文件路径</li>
+                        <li>signals: 信号列表(name-value对)</li>
+                        <li>物理值到原始值自动转换</li>
+                        <li>返回frame_id和编码数据</li>
+                    </ul>
+                    <div class="tag">DBC</div>
+                    <div class="tag">cantools</div>
+                </div>
+            </div>
+        </section>
+        <section id="slide-4" class="slide">
+            <h2 class="neon-text">测试流程</h2>
+            <div class="flow-container" id="test-flow">
+                <div class="flow-step" data-step="init">INIT</div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-step" data-step="send_single">SEND</div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-step" data-step="start_cyclic">CYCLIC</div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-step" data-step="receive">RECV</div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-step" data-step="check_signals">CHECK</div>
+            </div>
+            <div class="feature-list">
+                <span class="feature-item">init</span>
+                <span class="feature-item">send_single</span>
+                <span class="feature-item">start_cyclic</span>
+                <span class="feature-item">stop_cyclic</span>
+                <span class="feature-item">wait</span>
+                <span class="feature-item">receive</span>
+                <span class="feature-item">smart_car_switch</span>
+                <span class="feature-item">smart_car_switch_alltime</span>
+                <span class="feature-item">smart_car_zone</span>
+                <span class="feature-item">machine_arm_rotation</span>
+                <span class="feature-item">nfc_start</span>
+                <span class="feature-item">decode_signals</span>
+                <span class="feature-item">check_signals</span>
+            </div>
+        </section>
+        <section id="slide-5" class="slide">
+            <h2 class="neon-text">代码示例</h2>
+            <div class="code-example">
+                <h3>ECU仿真测试场景</h3>
+                <pre><code class="language-python">from tsmaster import (
+    ECUSimulationScenario,
+    TestStep,
+    MessageFrame,
+    StepType,
+)
+
+scenario = ECUSimulationScenario(
+    scenario_name="Digital Key Welcome Test",
+    channel=0,
+    steps=[
+        TestStep(step_id="init", step_type=StepType.INIT, order=0),
+        TestStep(
+            step_id="zone0",
+            step_type=StepType.SMART_CAR_ZONE,
+            order=1,
+            zone_value=0
+        ),
+        TestStep(
+            step_id="cyclic_500",
+            step_type=StepType.START_CYCLIC,
+            order=2,
+            period_ms=700,
+            message=MessageFrame(channel=0, identifier="0x500", data=[0]*8)
+        ),
+        TestStep(
+            step_id="check_signals",
+            step_type=StepType.CHECK_SIGNALS,
+            order=3,
+            check_dbc_path="D31L_15.3_CAN4_DKC_20251204_Draft.dbc",
+            check_message_ids=["0x251"],
+            conditions=[
+                {"signal": "P_DKey_Welcome", "operator": "==", "value": 1},
+            ]
+        ),
+    ]
+)</code></pre>
+            </div>
+            <div class="code-example">
+                <h3>CAN信号编码</h3>
+                <pre><code class="language-python">from tsmaster import encode_can_signal
+from tsmaster.models import SignalInput
+
+dbc_path = "D31L_15.3_CAN4_DKC_20251204_Draft.dbc"
+signals = [
+    SignalInput(signal="PwrSta", value=3),
+    SignalInput(signal="Voltage", value=12.5),
+]
+
+result = encode_can_signal(dbc_path, signals)
+# Returns: {"status": "success", "frame_id": "0x116", "data": [...]}</code></pre>
+            </div>
+        </section>
+        <section id="slide-6" class="slide">
+            <h2 class="neon-text">使用场景</h2>
+            <div class="card-grid">
+                <div class="card neon-border">
+                    <h3>智能小车测试</h3>
+                    <p>通过TCP协议控制智能小车移动，实现自动化区域测试。支持单次按键、持续开关、区域移动等多种控制模式。</p>
+                    <ul style="list-style: disc; padding-left: 1.5rem; color: var(--text-secondary);">
+                        <li>zone_value: 区域移动目标</li>
+                        <li>switch_value + keytime_ms: 按键控制</li>
+                        <li>enable_disable: 持续控制开关</li>
+                    </ul>
+                    <div class="tag">TCP</div>
+                    <div class="tag">智能硬件</div>
+                </div>
+                <div class="card neon-border">
+                    <h3>信号时序检查</h3>
+                    <p>验证信号在指定时间或多帧内保持特定值，确保ECU响应符合时序要求。支持回溯分析和条件组合检查。</p>
+                    <ul style="list-style: disc; padding-left: 1.5rem; color: var(--text-secondary);">
+                        <li>hold_max_frames: 连续帧数要求</li>
+                        <li>hold_duration_ms: 持续时间要求</li>
+                        <li>check_lookback_ms: 回溯时间窗口</li>
+                    </ul>
+                    <div class="tag">DBC</div>
+                    <div class="tag">时序分析</div>
+                </div>
+            </div>
+        </section>
+        <section id="slide-7" class="slide">
+            <h2 class="neon-text">技术亮点</h2>
+            <div class="highlights-grid">
+                <div class="highlight-card">
+                    <span class="highlight-icon">🚀</span>
+                    <h3>MCP协议集成</h3>
+                    <p>基于FastMCP框架的声明式API设计，支持声明式测试场景定义，开箱即用的工具生态</p>
+                </div>
+                <div class="highlight-card">
+                    <span class="highlight-icon">⚡</span>
+                    <h3>实时CAN测试</h3>
+                    <p>通过TSMaster COM API实现硬件级总线通信，支持CAN/CANFD报文收发与周期发送</p>
+                </div>
+                <div class="highlight-card">
+                    <span class="highlight-icon">🔄</span>
+                    <h3>DBC编解码</h3>
+                    <p>支持CANdb++格式DBC文件，物理值到原始值自动转换，多信号打包与解析</p>
+                </div>
+                <div class="highlight-card">
+                    <span class="highlight-icon">🤖</span>
+                    <h3>智能硬件控制</h3>
+                    <p>智能小车TCP控制+机械臂NFC刷卡/视频录制，软硬件协同的完整测试方案</p>
+                </div>
+            </div>
+        </section>
+        <section id="slide-8" class="slide">
+            <h1 class="neon-text">感谢观看</h1>
+            <p class="subtitle">OpenCode 车载ECU测试</p>
+            <div class="ending-content">
+                <p>基于MCP协议的智能测试解决方案</p>
+                <div class="tech-stack">
+                    <span class="tag">Python</span>
+                    <span class="tag">FastMCP</span>
+                    <span class="tag">TSMaster</span>
+                    <span class="tag">CAN/CANFD</span>
+                    <span class="tag">DBC</span>
+                </div>
+                <div class="links">
+                    <a href="https://github.com" class="btn">GitHub</a>
+                    <a href="#" class="btn">文档</a>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- GSAP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <!-- Prism.js Core -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <!-- Prism.js Python Language -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+
+    <!-- Scripts -->
+    <script src="scripts.js"></script>
+</body>
+</html>
