@@ -786,6 +786,7 @@
                 <li><a href="#features">功能</a></li>
                 <li><a href="#workflow">工作流</a></li>
                 <li><a href="#demo">演示</a></li>
+                <li><a href="#video-demo">视频演示</a></li>
             </ul>
         </div>
     </nav>
@@ -1624,26 +1625,44 @@
                     <div class="code-dot green"></div>
                 </div>
             </div>
-            <pre><code><span class="code-comment"># Automotive Testing MCP Server - 车载DKC综合测试解决方案</span>
-<span class="code-comment"># 功能包括：CAN/CANFD通信、智能小车控制、机械臂操作、NFC刷卡、视频录制</span>
+            
+            <!-- 分模块显示代码 -->
+            <div class="mcp-code-tabs">
+                <div class="mcp-code-tab active" onclick="switchMcpTab('main')">主入口</div>
+                <div class="mcp-code-tab" onclick="switchMcpTab('tools')">MCP工具</div>
+                <div class="mcp-code-tab" onclick="switchMcpTab('models')">数据模型</div>
+                <div class="mcp-code-tab" onclick="switchMcpTab('executor')">执行器</div>
+            </div>
+            
+            <div id="mcp-main" class="mcp-code-content active">
+                <pre><code><span class="code-comment"># automotive-testing.py - MCP Server主入口</span>
 <span class="code-keyword">from</span> mcp.server.fastmcp <span class="code-keyword">import</span> FastMCP
-<span class="code-keyword">from</span> tsmaster <span class="code-keyword">import</span> ECUSimulationScenario, _execute_step
+<span class="code-keyword">from</span> tsmaster <span class="code-keyword">import</span> (
+    ECUSimulationScenario, 
+    _ensure_connected,
+    _execute_step,
+    encode_can_signal
+)
 
 <span class="code-comment"># 初始化 MCP Server</span>
 mcp = FastMCP(<span class="code-string">"automotive-testing"</span>)
+
+<span class="code-keyword">if</span> __name__ == <span class="code-string">"__main__"</span>:
+    mcp.run()</code></pre>
+            </div>
+            
+            <div id="mcp-tools" class="mcp-code-content">
+                <pre><code><span class="code-comment"># MCP工具定义</span>
 
 <span class="code-keyword">@mcp.tool</span>(
     name=<span class="code-string">"tsmaster_run_simulation"</span>,
     annotations={
         <span class="code-string">"title"</span>: <span class="code-string">"执行DKC仿真测试场景"</span>,
-        <span class="code-string">"readOnlyHint"</span>: <span class="code-keyword">False</span>,
     },
 )
 <span class="code-keyword">async def</span> <span class="code-function">tsmaster_run_simulation</span>(scenario: ECUSimulationScenario) -> <span class="code-class">str</span>:
-    <span class="code-string">"""执行DKC仿真测试序列"""</span>
+    <span class="code-string">"""执行测试序列"""</span>
     _ensure_connected()
-    
-    <span class="code-comment"># 按顺序执行测试步骤</span>
     sorted_steps = <span class="code-function">sorted</span>(scenario.steps, key=<span class="code-keyword">lambda</span> s: s.order)
     step_results = []
     
@@ -1655,7 +1674,129 @@ mcp = FastMCP(<span class="code-string">"automotive-testing"</span>)
         <span class="code-string">"scenario_name"</span>: scenario.scenario_name,
         <span class="code-string">"status"</span>: <span class="code-string">"completed"</span>,
         <span class="code-string">"step_results"</span>: step_results
-    })</code></pre>
+    })
+
+<span class="code-keyword">@mcp.tool</span>(name=<span class="code-string">"encode_can_signal"</span>)
+<span class="code-keyword">async def</span> <span class="code-function">encode_can_signal</span>(dbc_path: str, signals: List[SignalInput]) -> <span class="code-class">str</span>:
+    <span class="code-string">"""CAN信号编码"""</span>
+    <span class="code-comment"># 使用DBC文件编码信号</span>
+    ...</code></pre>
+            </div>
+            
+            <div id="mcp-models" class="mcp-code-content">
+                <pre><code><span class="code-comment"># tsmaster/models.py - 数据模型</span>
+<span class="code-keyword">from</span> pydantic <span class="code-keyword">import</span> BaseModel
+
+<span class="code-keyword">class</span> <span class="code-class">StepType</span>(Enum):
+    INIT = <span class="code-string">"init"</span>
+    SEND_SINGLE = <span class="code-string">"send_single"</span>
+    START_CYCLIC = <span class="code-string">"start_cyclic"</span>
+    WAIT = <span class="code-string">"wait"</span>
+    RECEIVE = <span class="code-string">"receive"</span>
+    SMART_CAR_ZONE = <span class="code-string">"smart_car_zone"</span>
+    MACHINE_ARM_ROTATION = <span class="code-string">"machine_arm_rotation"</span>
+    NFC_START = <span class="code-string">"nfc_start"</span>
+    CHECK_SIGNALS = <span class="code-string">"check_signals"</span>
+
+<span class="code-keyword">class</span> <span class="code-class">MessageFrame</span>(BaseModel):
+    channel: int = <span class="code-number">0</span>
+    identifier: Union[int, str]
+    data: List[int]
+    is_extended_id: bool = <span class="code-keyword">False</span>
+
+<span class="code-keyword">class</span> <span class="code-class">TestStep</span>(BaseModel):
+    step_id: str
+    step_type: StepType
+    order: int
+    message: Optional[MessageFrame] = <span class="code-keyword">None</span>
+    duration_ms: Optional[int] = <span class="code-keyword">None</span>
+    zone_value: Optional[int] = <span class="code-keyword">None</span>
+    angle: Optional[int] = <span class="code-keyword">None</span>
+    conditions: Optional[List[Dict]] = <span class="code-keyword">None</span>
+
+<span class="code-keyword">class</span> <span class="code-class">ECUSimulationScenario</span>(BaseModel):
+    scenario_name: str
+    channel: int = <span class="code-number">0</span>
+    steps: List[TestStep]</code></pre>
+            </div>
+            
+            <div id="mcp-executor" class="mcp-code-content">
+                <pre><code><span class="code-comment"># tsmaster/executor.py - 测试执行器</span>
+<span class="code-keyword">def</span> <span class="code-function">_execute_step</span>(step: TestStep, channel: int) -> StepResult:
+    <span class="code-string">"""执行单个测试步骤"""</span>
+    <span class="code-keyword">if</span> step.step_type == StepType.INIT:
+        <span class="code-comment"># 初始化，启动BLF记录</span>
+        <span class="code-keyword">return</span> _handle_init(step)
+    
+    <span class="code-keyword">elif</span> step.step_type == StepType.SEND_SINGLE:
+        <span class="code-comment"># 发送单帧报文</span>
+        <span class="code-keyword">return</span> _handle_send_single(step, channel)
+    
+    <span class="code-keyword">elif</span> step.step_type == StepType.SMART_CAR_ZONE:
+        <span class="code-comment"># 控制智能小车</span>
+        success = send_zone_value(step.zone_value)
+        <span class="code-keyword">return</span> StepResult(status=<span class="code-string">"passed"</span> <span class="code-keyword">if</span> success <span class="code-keyword">else</span> <span class="code-string">"failed"</span>)
+    
+    <span class="code-keyword">elif</span> step.step_type == StepType.CHECK_SIGNALS:
+        <span class="code-comment"># 检查信号条件</span>
+        <span class="code-keyword">return</span> _handle_check_signals(step, channel)</code></pre>
+            </div>
+            
+            <style>
+                .mcp-code-tabs {
+                    display: flex;
+                    gap: 0.5rem;
+                    margin-bottom: 1rem;
+                    border-bottom: 1px solid var(--border-color);
+                    padding-bottom: 0.75rem;
+                }
+                .mcp-code-tab {
+                    padding: 0.5rem 1rem;
+                    background: rgba(255, 255, 255, 0.05);
+                    border: 1px solid transparent;
+                    border-radius: 8px;
+                    color: var(--text-secondary);
+                    font-size: 0.875rem;
+                    cursor: pointer;
+                    transition: all 0.3s;
+                }
+                .mcp-code-tab:hover {
+                    background: rgba(255, 255, 255, 0.1);
+                    color: var(--text-primary);
+                }
+                .mcp-code-tab.active {
+                    background: rgba(96, 165, 250, 0.15);
+                    border-color: rgba(96, 165, 250, 0.4);
+                    color: var(--text-primary);
+                }
+                .mcp-code-content {
+                    display: none;
+                }
+                .mcp-code-content.active {
+                    display: block;
+                    animation: fadeIn 0.3s ease;
+                }
+            </style>
+            
+            <script>
+                function switchMcpTab(tabName) {
+                    // Hide all contents
+                    document.querySelectorAll('.mcp-code-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    
+                    // Remove active from all tabs
+                    document.querySelectorAll('.mcp-code-tab').forEach(tab => {
+                        tab.classList.remove('active');
+                    });
+                    
+                    // Show selected content
+                    document.getElementById('mcp-' + tabName).classList.add('active');
+                    
+                    // Add active to clicked tab
+                    event.target.classList.add('active');
+                }
+            </script>
         </div>
     </section>
 
@@ -1764,20 +1905,20 @@ mcp = FastMCP(<span class="code-string">"automotive-testing"</span>)
         </div>
 
         <div class="timeline">
-            <!-- 步骤1: 用户描述需求 -->
+            <!-- 步骤1: 用户要求从Excel读取测试用例 -->
             <div class="timeline-item">
                 <div class="timeline-content">
                     <div class="timeline-step user-step">👤 用户</div>
-                    <h3>描述测试需求</h3>
-                    <p>用户用自然语言描述测试场景，例如：<strong>"测试数字钥匙靠近车辆后自动解锁车门的功能"</strong></p>
+                    <h3>要求从Excel读取测试用例</h3>
+                    <p>用户指示Agent使用Excel skill读取测试用例文件，获取测试场景、步骤和预期结果。</p>
                     <div class="code-section" style="margin: 1rem 0 0; padding: 1rem;">
-                        <pre style="padding: 1rem;"><code><span class="code-comment"># 用户输入示例：</span>
-<span class="code-string">"请帮我测试DKC数字钥匙功能：
-1. 先发送唤醒信号
-2. 用智能小车模拟钥匙靠近到Zone 2
-3. 检查认证状态
-4. 模拟按键解锁
-5. 验证车门是否解锁"</span></code></pre>
+                        <pre style="padding: 1rem;"><code><span class="code-comment"># 用户使用自然语言指令：</span>
+<span class="code-string">"请从Excel文件 'DKC_TestCases.xlsx' 中读取测试用例，
+执行其中的数字钥匙认证测试场景"</span>
+
+<span class="code-comment"># Agent使用Excel skill自动读取：</span>
+<span class="code-keyword">await</span> read_excel(<span class="code-string">"DKC_TestCases.xlsx"</span>, sheet=<span class="code-string">"TestCases"</span>)
+<span class="code-comment"># 返回：测试场景、步骤、预期结果等结构化数据</span></code></pre>
                     </div>
                 </div>
             </div>
@@ -1838,20 +1979,25 @@ conditions=[
                 </div>
             </div>
 
-            <!-- 步骤5: Agent生成报告 -->
+            <!-- 步骤5: Agent自动回填Excel -->
             <div class="timeline-item">
                 <div class="timeline-content">
                     <div class="timeline-step agent-step">🤖 Agent</div>
-                    <h3>生成测试报告</h3>
-                    <p>Agent自动生成详细测试报告，包括每个步骤的执行状态、耗时、信号验证结果和错误信息。</p>
+                    <h3>自动回填测试结果到Excel</h3>
+                    <p>测试完成后，Agent自动使用Excel skill将执行结果、耗时、通过/失败状态回填到原始测试用例表格中，生成完整测试报告。</p>
                     <div class="code-section" style="margin: 1rem 0 0; padding: 1rem;">
-                        <pre style="padding: 1rem;"><code>{
-  <span class="code-string">"scenario_name"</span>: <span class="code-string">"DKC数字钥匙认证测试"</span>,
-  <span class="code-string">"status"</span>: <span class="code-string">"completed"</span>,
-  <span class="code-string">"total_steps"</span>: <span class="code-number">8</span>,
-  <span class="code-string">"passed_steps"</span>: <span class="code-number">8</span>,
-  <span class="code-string">"total_duration_ms"</span>: <span class="code-number">9305</span>
-}</code></pre>
+                        <pre style="padding: 1rem;"><code><span class="code-comment"># Agent自动回填测试结果到Excel：</span>
+<span class="code-keyword">await</span> write_excel(
+    file_path=<span class="code-string">"DKC_TestCases.xlsx"</span>,
+    sheet=<span class="code-string">"TestCases"</span>,
+    data={
+        <span class="code-string">"Test_ID"</span>: <span class="code-string">"DKC_001"</span>,
+        <span class="code-string">"Status"</span>: <span class="code-string">"Passed"</span>,
+        <span class="code-string">"Duration"</span>: <span class="code-string">"9305ms"</span>,
+        <span class="code-string">"Result"</span>: <span class="code-string">"车门解锁成功"</span>,
+        <span class="code-string">"Timestamp"</span>: <span class="code-string">"2025-04-15 10:23:45"</span>
+    }
+)</code></pre>
                     </div>
                 </div>
             </div>
@@ -2298,21 +2444,6 @@ scenario = ECUSimulationScenario(
         </div>
     </section>
 
-    <!-- Footer -->
-    <footer>
-        <div class="footer-content">
-            <div class="footer-logo">OpenCode DKC Testing</div>
-            <p class="footer-text">
-                基于MCP协议的车载DKC智能测试解决方案<br>
-                让测试更智能、更高效、更可靠
-            </p>
-            <ul class="footer-links">
-                <li><a href="#">文档</a></li>
-                <li><a href="#">支持</a></li>
-            </ul>
-        </div>
-    </footer>
-
     <script>
         // Generate floating particles
         function createParticles() {
@@ -2381,5 +2512,62 @@ scenario = ECUSimulationScenario(
         window.addEventListener('scroll', scrollReveal);
         window.addEventListener('load', scrollReveal);
     </script>
+
+    <!-- Video Demo Section -->
+    <section id="video-demo" class="scroll-reveal">
+        <div class="section-header">
+            <div class="section-tag">视频演示</div>
+            <h2 class="section-title">OpenCode Agent DKC测试演示</h2>
+            <p class="section-desc">
+                观看实际测试过程，了解OpenCode Agent如何通过自然语言指令完成完整的车载DKC测试流程。
+            </p>
+        </div>
+
+        <div class="video-container">
+            <div class="video-wrapper">
+                <video controls poster="DKC-testing.mp4" style="width: 100%; border-radius: 16px;">
+                    <source src="DKC-testing.mp4" type="video/mp4">
+                    <p>您的浏览器不支持视频播放。请下载视频查看：<a href="DKC-testing.mp4">DKC-testing.mp4</a></p>
+                </video>
+            </div>
+        </div>
+
+        <style>
+            .video-container {
+                background: var(--card-bg);
+                border-radius: 24px;
+                padding: 2rem;
+                border: 1px solid var(--border-color);
+                margin-top: 2rem;
+            }
+
+            .video-wrapper {
+                border-radius: 16px;
+                overflow: hidden;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            }
+
+            .video-wrapper video {
+                display: block;
+                width: 100%;
+            }
+        </style>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">OpenCode DKC Testing</div>
+            <p class="footer-text">
+                基于MCP协议的车载DKC智能测试解决方案<br>
+                让测试更智能、更高效、更可靠
+            </p>
+            <ul class="footer-links">
+                <li><a href="#">文档</a></li>
+                <li><a href="#">支持</a></li>
+            </ul>
+        </div>
+    </footer>
+
 </body>
 </html>
