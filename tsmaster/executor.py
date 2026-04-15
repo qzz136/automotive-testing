@@ -592,7 +592,13 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
                     if cond_hold_duration_ms:
                         hold_req_str.append(f"{cond_hold_duration_ms}ms")
 
-                    if tracker["consecutive_count"] > 0:
+                    if tracker.get("passed", False):
+                        # 条件已满足
+                        failed_info_parts.append(
+                            f"  - [{idx}] Signal '{signal_name}': actual={last_actual}, expected {operator} {expected_value}, "
+                            f"PASSED (required: {', '.join(hold_req_str) if hold_req_str else 'immediate'})"
+                        )
+                    elif tracker["consecutive_count"] > 0:
                         elapsed = current_time - tracker["first_frame_timestamp"] if tracker["first_frame_timestamp"] else 0
                         hold_status = []
                         if cond_hold_max_frames:
