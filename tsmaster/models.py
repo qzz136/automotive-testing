@@ -4,7 +4,7 @@ TSMaster数据模型
 
 from enum import Enum
 from typing import List, Dict, Any, Optional, Union
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_serializer
 
 
 class StepType(str, Enum):
@@ -123,7 +123,7 @@ class TestStep(BaseModel):
     )
     conditions: Optional[List[Dict[str, Any]]] = Field(
         default_factory=list,
-        description="信号条件列表，格式: [{'signal': 'xxx', 'operator': '==', 'value': 3, 'hold_max_frames': 20, 'hold_duration_ms': 2000}]"
+        description="信号条件列表，格式: [{'signal': 'xxx', 'operator': '==', 'value': 3, 'hold_max_frames': 20}] 或 [{'signal': 'xxx', 'operator': '==', 'value': 3, 'hold_duration_ms': 2000}]，注意：hold_max_frames和hold_duration_ms不能同时存在于同一条件中"
     )
     # 时序信号检查参数
     hold_duration_ms: Optional[int] = Field(
@@ -148,13 +148,20 @@ class ECUSimulationScenario(BaseModel):
 
 class StepResult(BaseModel):
     """步骤执行结果"""
+    model_config = ConfigDict(extra='forbid')
 
     step_id: str
     step_type: str
     status: str
-    received_messages: List[Dict[str, Any]] = Field(default_factory=list)
+    received_messages: Optional[List[Dict[str, Any]]] = Field(default=None)
     error_message: Optional[str] = None
     timestamp: str
+
+    @model_serializer(mode='wrap')
+    def _exclude_none(self, handler):
+        """序列化时排除所有None值的字段"""
+        result = handler(self)
+        return {k: v for k, v in result.items() if v is not None}
 
 
 class SimulationReport(BaseModel):

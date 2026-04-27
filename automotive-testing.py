@@ -60,7 +60,7 @@ async def tsmaster_run_simulation(scenario: ECUSimulationScenario) -> str:
            conditions, hold_max_frames, hold_duration_ms, tolerance_value
       check_lookback_ms: 检查回溯时间窗口(ms)，默认15000，只检查该时间窗口内的报文
       wait_before_check_ms: 执行前等待时间(ms)，默认5000，让信号稳定后再检查
-      conditions格式: [{"signal": "信号名", "operator": "==", "value": 值, "hold_max_frames": 20, "hold_duration_ms": 2000}]，操作符: == != > < >= <= exists not_exists
+      conditions格式: [{"signal": "信号名", "operator": "==", "value": 值, "hold_max_frames": 20}] 或 [{"signal": "信号名", "operator": "==", "value": 值, "hold_duration_ms": 2000}]，注意：hold_max_frames和hold_duration_ms不能同时存在于同一条件中，操作符: == != > < >= <= exists not_exists
 
     注意：周期发送会在测试流程结束时自动停止，如需提前停止可使用 stop_cyclic 步骤。
 
@@ -105,17 +105,7 @@ async def tsmaster_run_simulation(scenario: ECUSimulationScenario) -> str:
                 "failed_steps": failed,
                 "skipped_steps": skipped,
                 "total_duration_ms": total_duration,
-                "step_results": [
-                    {
-                        "step_id": r.step_id,
-                        "step_type": r.step_type,
-                        "status": r.status,
-                        "received_messages": r.received_messages,
-                        "error_message": r.error_message,
-                        "timestamp": r.timestamp,
-                    }
-                    for r in step_results
-                ],
+                "step_results": [r.model_dump() for r in step_results],
             },
             ensure_ascii=False,
         )

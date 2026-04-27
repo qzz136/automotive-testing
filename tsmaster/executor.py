@@ -367,6 +367,19 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
                     timestamp=timestamp,
                 )
 
+            # 验证每个条件的hold参数（hold_max_frames和hold_duration_ms不能同时存在）
+            for idx, cond in enumerate(step.conditions):
+                cond_hold_frames = cond.get('hold_max_frames')
+                cond_hold_ms = cond.get('hold_duration_ms')
+                if cond_hold_frames is not None and cond_hold_frames > 0 and cond_hold_ms is not None and cond_hold_ms > 0:
+                    return StepResult(
+                        step_id=step.step_id,
+                        step_type=step_type_str,
+                        status="failed",
+                        error_message=f"Condition [{idx}] has both hold_max_frames and hold_duration_ms, they cannot be used together",
+                        timestamp=timestamp,
+                    )
+
             # 检查是否为时序模式（任意条件有hold参数即启用）
             is_temporal_mode = any(
                 (cond.get('hold_max_frames') is not None and cond.get('hold_max_frames') > 0) or
@@ -549,7 +562,6 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
                                 step_id=step.step_id,
                                 step_type=step_type_str,
                                 status="passed",
-                                received_messages=[decoded],
                                 timestamp=timestamp,
                             )
                     except Exception:
@@ -626,6 +638,7 @@ def _execute_step(step: TestStep, channel: int) -> StepResult:
                     step_id=step.step_id,
                     step_type=step_type_str,
                     status="failed",
+                    received_messages=[],
                     error_message="\n".join(failed_info_parts),
                     timestamp=timestamp,
                 )
