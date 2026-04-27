@@ -14,3 +14,6 @@ MPLibCode.cpp
 
 # encode_signal CLI (standalone, use MCP tool instead)
 encode_signal.py
+
+# node_modules (auto-generated)
+node_modules/
