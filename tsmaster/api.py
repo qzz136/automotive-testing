@@ -218,9 +218,9 @@ def _get_canfd_messages(
             pass
         time.sleep(0.01)
 
-    # 自动保存到日志文件
-    if messages:
-        _append_messages_to_log(messages)
+    # 自动保存到日志文件（BLF已由TSMaster start_logging处理，无需额外保存）
+    # if messages:
+    #     _append_messages_to_log(messages)
 
     return messages
 
