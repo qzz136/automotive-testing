@@ -17,3 +17,8 @@ encode_signal.py
 
 # node_modules (auto-generated)
 node_modules/
+
+# Confidential / sensitive files - do not push to GitHub
+xiangmutishici.txt
+D31+DKC+FRS_V1.5b_20260127+(Eric)+.pdf
+TSMaster_COM API_Python编程指导.pdf
